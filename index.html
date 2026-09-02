@@ -25,7 +25,7 @@
       200
     );
     // câmera afastada e um pouco de cima, pra ver o sistema todo alinhado
-    camera.position.set(0, 12, 30);
+    camera.position.set(0, 24, 42);
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -54,6 +54,19 @@
     // Geometria 2: torus (anel) -> usada no anel de Saturno
     const anelGeo = new THREE.TorusGeometry(2, 0.3, 8, 40);
 
+    // Linhas finas que tornam os caminhos orbitais visíveis.
+    const matOrbita = new THREE.LineBasicMaterial({ color: 0x557080, transparent: true, opacity: 0.45 });
+
+    function criarOrbita(raio) {
+      const pontos = [];
+      for (let i = 0; i < 128; i++) {
+        const angulo = (i / 128) * Math.PI * 2;
+        pontos.push(new THREE.Vector3(Math.cos(angulo) * raio, 0, Math.sin(angulo) * raio));
+      }
+      const orbita = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pontos), matOrbita);
+      scene.add(orbita);
+    }
+
 
     // Materiais
 
@@ -72,29 +85,36 @@
     // Criação dos planetas.
 
     const corpos = []; // Guarda os planetas pra facilitar aplicar a rotação depois.
+    const orbitas = []; // Guarda as trajetórias para animar cada planeta.
 
-    function criarCorpo(geometria, material, x, y, z) {
+    function criarCorpo(geometria, material, raio, velocidade) {
+      const orbita = new THREE.Object3D();
+      scene.add(orbita);
+      criarOrbita(raio);
+
       const mesh = new THREE.Mesh(geometria, material);
-      mesh.position.set(x, y, z);
-      scene.add(mesh);
+      mesh.position.set(raio, 0, 0);
+      orbita.add(mesh);
       corpos.push(mesh);
+      orbitas.push({ grupo: orbita, velocidade });
       return mesh;
     }
 
-    const sol      = criarCorpo(esferaGeo, matSol,      0,  0,  0);
-    const mercurio = criarCorpo(esferaGeo, matMercurio, -4, 0, -3);
-    const venus    = criarCorpo(esferaGeo, matVenus,    -8, 0.5, 3);
-    const terra    = criarCorpo(esferaGeo, matTerra,   -10, 0,  -4);
-    const marte    = criarCorpo(esferaGeo, matMarte,   -15, -0.5, 6);
-    const jupiter  = criarCorpo(esferaGeo, matJupiter,   4, 0.5, -8);
-    const saturno  = criarCorpo(esferaGeo, matSaturno,   9, 0,  2);
-    const urano    = criarCorpo(esferaGeo, matUrano,    13, -0.5, 7);
-    const netuno   = criarCorpo(esferaGeo, matNetuno,   17, 0,  0);
+    const sol      = new THREE.Mesh(esferaGeo, matSol);
+    scene.add(sol);
+    const mercurio = criarCorpo(esferaGeo, matMercurio,  5, 0.020);
+    const venus    = criarCorpo(esferaGeo, matVenus,     7, 0.015);
+    const terra    = criarCorpo(esferaGeo, matTerra,     9, 0.012);
+    const marte    = criarCorpo(esferaGeo, matMarte,     11, 0.010);
+    const jupiter  = criarCorpo(esferaGeo, matJupiter,   15, 0.007);
+    const saturno  = criarCorpo(esferaGeo, matSaturno,   19, 0.005);
+    const urano    = criarCorpo(esferaGeo, matUrano,     23, 0.0035);
+    const netuno   = criarCorpo(esferaGeo, matNetuno,    27, 0.0025);
 
     // anel de Saturno: possui a mesma posição do planeta, mas feito de geometria diferente.
     const anelSaturno = new THREE.Mesh(anelGeo, matAnel);
-    anelSaturno.position.copy(saturno.position);
-    scene.add(anelSaturno);
+    saturno.add(anelSaturno);
+    anelSaturno.position.set(0, 0, 0);
     // Não está entre a lista de corpos, pois possui rotação própria.
 
 
@@ -120,6 +140,10 @@
       // rotação própria (em torno do próprio eixo) de cada planeta
       corpos.forEach(corpo => {
         corpo.rotation.y += 0.01;
+      });
+
+      orbitas.forEach(orbita => {
+        orbita.grupo.rotation.y += orbita.velocidade;
       });
 
       controls.update(); // necessário sempre que enableDamping está ativo
