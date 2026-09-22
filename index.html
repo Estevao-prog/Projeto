@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sistema Solar 3D</title>
+
+  <!-- Toda a aparência (cores, painéis, posições na tela) mora em css/estilo.css -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- =====================================================================
+       INTERFACE (HUD)
+       Estes elementos HTML ficam por cima do desenho 3D. O JavaScript
+       apenas lê e escreve neles pelos ids (ex.: "st-tempo", "info").
+       ===================================================================== -->
+
+  <!-- Painel de ajuda no canto superior esquerdo: lista de teclas -->
+  <aside id="ajuda" class="painel">
+    <h1>Sistema Solar 3D</h1>
+    <dl>
+      <dt>W / S</dt><dd>acelerar e ré da nave</dd>
+      <dt>A / D</dt><dd>girar a nave</dd>
+      <dt>R / F</dt><dd>subir e descer</dd>
+      <dt>Shift</dt><dd>turbo</dd>
+      <dt>C</dt><dd>câmera segue a nave</dd>
+      <dt>Clique</dt><dd>selecionar um astro</dd>
+      <dt>Esc</dt><dd>voltar à visão geral</dd>
+      <dt>P</dt><dd>pausar o tempo</dd>
+      <dt>+ / -</dt><dd>velocidade do tempo</dd>
+      <dt>L</dt><dd>mostrar ou ocultar nomes</dd>
+      <dt>H</dt><dd>ocultar esta ajuda</dd>
+    </dl>
+  </aside>
+
+  <!-- Barra de status no rodapé: velocidade do tempo, da nave e foco atual -->
+  <div id="status" class="painel">
+    <span>Tempo: <b id="st-tempo">1x</b></span>
+    <span>Nave: <b id="st-nave">0.0</b> u/s</span>
+    <span>Foco: <b id="st-foco">livre</b></span>
+  </div>
+
+  <!-- Painel de informações do astro clicado (preenchido pelo JavaScript) -->
+  <aside id="info" class="painel"></aside>
+
+  <!-- Caixa onde os nomes flutuantes dos astros são criados dinamicamente -->
+  <div id="rotulos"></div>
+
+
+  <!-- =====================================================================
+       BIBLIOTECAS EXTERNAS
+       three.js  -> desenha em 3D usando a placa de vídeo (WebGL)
+       OrbitControls -> permite girar/aproximar a cena com o mouse
+       ===================================================================== -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+
+  <!-- =====================================================================
+       CÓDIGO DO PROJETO
+       A ORDEM DESTES ARQUIVOS IMPORTA: cada um usa coisas criadas nos
+       anteriores. Ex.: objeto-planetas.js só funciona depois que
+       texturas.js e cena.js já rodaram.
+       ===================================================================== -->
+
+  <!-- 1. Ferramentas de base (não dependem de nada do projeto) -->
+  <script src="js/utilidades.js"></script>     <!-- sorteio com semente, ruído, pintura de canvas -->
+  <script src="js/texturas.js"></script>       <!-- "pinturas" de cada astro, geradas por código -->
+  <script src="js/dados-astros.js"></script>   <!-- textos que aparecem no painel de informações -->
+
+  <!-- 2. Montagem do mundo 3D -->
+  <script src="js/cena.js"></script>           <!-- cena, câmera, renderizador, luzes, controles -->
+  <script src="js/compartilhado.js"></script>  <!-- listas e funções usadas por vários objetos -->
+
+  <!-- 3. Objetos que aparecem na tela -->
+  <script src="js/objeto-estrelas.js"></script>
+  <script src="js/objeto-sol.js"></script>
+  <script src="js/objeto-planetas.js"></script>
+  <script src="js/objeto-terra-extras.js"></script>  <!-- nuvens, anel de Saturno e Lua -->
+  <script src="js/objeto-cinturao.js"></script>
+  <script src="js/objeto-cometa.js"></script>
+  <script src="js/objeto-nave.js"></script>
+  <script src="js/objeto-marcador.js"></script>
+
+  <!-- 4. Interação e interface -->
+  <script src="js/interface.js"></script>        <!-- estado do tempo, painel de info, nomes na tela -->
+  <script src="js/camera-foco.js"></script>      <!-- câmera que acompanha o astro selecionado -->
+  <script src="js/controle-teclado.js"></script> <!-- teclas e movimento da nave -->
+  <script src="js/interacao-mouse.js"></script>  <!-- clique para selecionar astros -->
+
+  <!-- 5. Motor: liga tudo e desenha 60 vezes por segundo -->
+  <script src="js/loop-animacao.js"></script>
+
+</body>
+</html>

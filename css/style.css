@@ -1,0 +1,120 @@
+/* =====================================================================
+   ESTILO DA INTERFACE
+   Este arquivo cuida SÓ da aparência dos painéis em 2D que ficam por
+   cima do desenho 3D. O visual dos planetas vem do JavaScript.
+   ===================================================================== */
+
+/* Variáveis de cor: mudando aqui, muda em todo o site de uma vez. */
+:root {
+  --painel: rgba(6, 10, 22, 0.74);      /* fundo escuro semitransparente dos painéis */
+  --borda: rgba(120, 170, 255, 0.22);   /* borda azulada suave */
+  --destaque: #6fd3ff;                  /* azul claro usado em títulos e valores */
+  --texto: #e6eefc;                     /* cor principal do texto */
+  --texto-suave: #9db2d4;               /* cor de textos secundários */
+}
+
+/* Faz padding e borda contarem dentro da largura do elemento (evita surpresas). */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;                /* tira a margem branca padrão do navegador */
+  overflow: hidden;         /* sem barras de rolagem: a cena ocupa a tela toda */
+  background: #000;
+  color: var(--texto);
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+}
+
+/* O canvas é criado pelo three.js e inserido no body pelo JavaScript. */
+canvas {
+  display: block;           /* remove um espaço extra que o navegador coloca embaixo */
+  cursor: grab;             /* mãozinha indicando que dá para arrastar a câmera */
+}
+
+
+/* ---------------------------------------------------------------------
+   Caixa genérica dos painéis (ajuda, status e informações)
+   --------------------------------------------------------------------- */
+.painel {
+  position: fixed;                   /* fica parado na tela mesmo se algo rolar */
+  background: var(--painel);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  padding: 14px 16px;
+  backdrop-filter: blur(6px);        /* desfoca o que estiver atrás do painel */
+  pointer-events: none;              /* deixa o clique "passar" e chegar na cena 3D */
+}
+
+
+/* ---------------------------------------------------------------------
+   Painel de ajuda (canto superior esquerdo)
+   --------------------------------------------------------------------- */
+#ajuda { top: 14px; left: 14px; width: 280px; font-size: 13px; line-height: 1.55; }
+#ajuda h1 { margin: 0 0 8px; font-size: 18px; font-weight: 700; letter-spacing: 0.2px; }
+
+/* A lista de teclas vira duas colunas: tecla à esquerda, descrição à direita. */
+#ajuda dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+#ajuda dt { color: var(--destaque); font-weight: 700; white-space: nowrap; }
+#ajuda dd { margin: 0; color: var(--texto-suave); }
+
+/* A tecla H adiciona/remove esta classe para esconder a ajuda. */
+#ajuda.oculto { display: none; }
+
+
+/* ---------------------------------------------------------------------
+   Barra de status (canto inferior esquerdo)
+   --------------------------------------------------------------------- */
+#status {
+  left: 14px; bottom: 14px; font-size: 13px;
+  display: flex; gap: 18px;      /* itens lado a lado com espaço entre eles */
+  padding: 9px 14px;
+}
+#status b { color: var(--destaque); font-weight: 700; }
+
+
+/* ---------------------------------------------------------------------
+   Painel de informações do astro (canto superior direito)
+   Começa invisível e deslocado; ganha a classe "ativo" ao clicar num astro.
+   --------------------------------------------------------------------- */
+#info {
+  top: 14px; right: 14px; width: 300px; font-size: 13px; line-height: 1.5;
+  opacity: 0;                         /* invisível */
+  transform: translateX(16px);        /* levemente deslocado para a direita */
+  transition: opacity .25s, transform .25s;  /* anima a entrada e a saída */
+}
+#info.ativo { opacity: 1; transform: none; }   /* estado visível */
+
+#info h2 { margin: 0; font-size: 22px; }
+#info .tipo { margin: 2px 0 10px; color: var(--destaque); }
+#info dl { margin: 0 0 10px; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+#info dt { color: var(--texto-suave); }
+#info dd { margin: 0; }
+#info .curiosidade { margin: 0 0 10px; }
+#info .dica { margin: 0; color: var(--texto-suave); font-size: 12px; }
+
+
+/* ---------------------------------------------------------------------
+   Nomes flutuantes dos astros
+   O JavaScript calcula a posição na tela e move cada nome com "transform".
+   --------------------------------------------------------------------- */
+.rotulo {
+  position: fixed; left: 0; top: 0;
+  font-size: 12px; color: #d7e8ff;
+  pointer-events: none;
+  text-shadow: 0 0 4px #000, 0 0 8px #000;  /* contorno escuro para ler sobre o espaço */
+  white-space: nowrap;
+  will-change: transform;                   /* avisa o navegador que isso muda muito */
+}
+
+
+/* ---------------------------------------------------------------------
+   Telas pequenas: painéis menores para não cobrir a cena
+   --------------------------------------------------------------------- */
+@media (max-width: 700px) {
+  #ajuda { width: 220px; font-size: 12px; }
+  #info { width: 220px; top: auto; bottom: 60px; }
+}
+
+/* Respeita quem configurou o sistema para reduzir animações. */
+@media (prefers-reduced-motion: reduce) {
+  #info { transition: none; }
+}
