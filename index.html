@@ -2,916 +2,310 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sistema Solar 3D</title>
+  <title>Sistema Solar</title>
   <style>
-    :root {
-      --painel: rgba(6, 10, 22, 0.74);
-      --borda: rgba(120, 170, 255, 0.22);
-      --destaque: #6fd3ff;
-      --texto: #e6eefc;
-      --texto-suave: #9db2d4;
+    body { margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; }
+    #instrucoes {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      color: #cccccc;
+      font-family: sans-serif;
+      font-size: 13px;
+      background: rgba(0,0,0,0.4);
+      padding: 6px 10px;
+      border-radius: 6px;
+      pointer-events: none;
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; overflow: hidden; background: #000; color: var(--texto);
-           font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; }
-    canvas { display: block; cursor: grab; }
-
-    .painel { position: fixed; background: var(--painel); border: 1px solid var(--borda);
-              border-radius: 10px; padding: 14px 16px; backdrop-filter: blur(6px);
-              pointer-events: none; }
-
-    #ajuda { top: 14px; left: 14px; width: 280px; font-size: 13px; line-height: 1.55; }
-    #ajuda h1 { margin: 0 0 8px; font-size: 18px; font-weight: 700; letter-spacing: 0.2px; }
-    #ajuda dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
-    #ajuda dt { color: var(--destaque); font-weight: 700; white-space: nowrap; }
-    #ajuda dd { margin: 0; color: var(--texto-suave); }
-    #ajuda.oculto { display: none; }
-
-    #status { left: 14px; bottom: 14px; font-size: 13px; display: flex; gap: 18px; padding: 9px 14px; }
-    #status b { color: var(--destaque); font-weight: 700; }
-
-    #info { top: 14px; right: 14px; width: 300px; font-size: 13px; line-height: 1.5;
-            opacity: 0; transform: translateX(16px); transition: opacity .25s, transform .25s; }
-    #info.ativo { opacity: 1; transform: none; }
-    #info h2 { margin: 0; font-size: 22px; }
-    #info .tipo { margin: 2px 0 10px; color: var(--destaque); }
-    #info dl { margin: 0 0 10px; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
-    #info dt { color: var(--texto-suave); }
-    #info dd { margin: 0; }
-    #info .curiosidade { margin: 0 0 10px; }
-    #info .dica { margin: 0; color: var(--texto-suave); font-size: 12px; }
-
-    .rotulo { position: fixed; left: 0; top: 0; font-size: 12px; color: #d7e8ff; pointer-events: none;
-              text-shadow: 0 0 4px #000, 0 0 8px #000; white-space: nowrap; will-change: transform; }
-
-    @media (max-width: 700px) {
-      #ajuda { width: 220px; font-size: 12px; }
-      #info { width: 220px; top: auto; bottom: 60px; }
+    #painelInfo {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      max-width: 240px;
+      color: #ffffff;
+      font-family: sans-serif;
+      background: rgba(10, 15, 25, 0.75);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: none; /* só aparece quando um corpo é selecionado */
+      pointer-events: none;
     }
-    @media (prefers-reduced-motion: reduce) { #info { transition: none; } }
+    #painelInfo h3 {
+      margin: 0 0 6px 0;
+      font-size: 16px;
+    }
+    #painelInfo p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #dddddd;
+    }
   </style>
 </head>
 <body>
-
-  <!-- Interface (HUD) -->
-  <aside id="ajuda" class="painel">
-    <h1>Sistema Solar 3D</h1>
-    <dl>
-      <dt>W / S</dt><dd>acelerar e ré da nave</dd>
-      <dt>A / D</dt><dd>girar a nave</dd>
-      <dt>R / F</dt><dd>subir e descer</dd>
-      <dt>Shift</dt><dd>turbo</dd>
-      <dt>C</dt><dd>câmera segue a nave</dd>
-      <dt>Clique</dt><dd>selecionar um astro</dd>
-      <dt>Esc</dt><dd>voltar à visão geral</dd>
-      <dt>P</dt><dd>pausar o tempo</dd>
-      <dt>+ / -</dt><dd>velocidade do tempo</dd>
-      <dt>L</dt><dd>mostrar ou ocultar nomes</dd>
-      <dt>H</dt><dd>ocultar esta ajuda</dd>
-    </dl>
-  </aside>
-
-  <div id="status" class="painel">
-    <span>Tempo: <b id="st-tempo">1x</b></span>
-    <span>Nave: <b id="st-nave">0.0</b> u/s</span>
-    <span>Foco: <b id="st-foco">livre</b></span>
+  <div id="instrucoes">WASD: mover a sonda &nbsp;|&nbsp; Clique: selecionar um planeta</div>
+  <div id="painelInfo">
+    <h3 id="painelInfoTitulo"></h3>
+    <p id="painelInfoTexto"></p>
   </div>
-
-  <aside id="info" class="painel"></aside>
-  <div id="rotulos"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script>
 
-    // =====================================================================
-    // 1. CENA, CÂMERA, RENDERIZADOR E CONTROLES DE ÓRBITA
-    // =====================================================================
+    // Cenas, cameras e rederizadores.
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x02030a);
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-    const POSICAO_INICIAL_CAMERA = new THREE.Vector3(0, 26, 46);
-    const ORIGEM = new THREE.Vector3(0, 0, 0);
-    camera.position.copy(POSICAO_INICIAL_CAMERA);
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      200
+    );
+    // câmera afastada e um pouco de cima, pra ver o sistema todo alinhado
+    camera.position.set(0, 24, 42);
+    camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
-    const canvas = renderer.domElement;
 
-    const controls = new THREE.OrbitControls(camera, canvas);
-    controls.enableDamping = true;   // movimento suave
-    controls.dampingFactor = 0.06;
-    controls.minDistance = 2;        // permite chegar perto da Lua e da nave
-    controls.maxDistance = 140;      // não deixa perder o sistema de vista
+    // Utilização de OrbitControls para permitir interação com o sistema
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;   // Deixa o movimento mais suave.
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 5;        // Impede de dar zoom até dentro do sol
+    controls.maxDistance = 80;       // Não permite afastar demais a camera e perder a visão do sistema
 
+    // Relógio para animações baseadas em tempo decorrido (Math.sin)
+    const relogio = new THREE.Clock();
 
-    // =====================================================================
-    // 2. ILUMINAÇÃO
-    // =====================================================================
-
-    // Luz que parte do Sol e ilumina os planetas (materiais Standard reagem a ela).
-    const luzSol = new THREE.PointLight(0xfff1d6, 2.2, 170, 1);
+    // Iluminação da cena que parte do proprio sol
+    const luzSol = new THREE.PointLight(0xffffff, 2, 100);
     luzSol.position.set(0, 0, 0);
     scene.add(luzSol);
-
-    // Luz de preenchimento: sem ela o lado escuro dos planetas ficaria totalmente preto.
-    scene.add(new THREE.AmbientLight(0x4a5470, 1));
+    scene.add(new THREE.AmbientLight(0x404040)); // luz de preenchimento, senão o lado escuro fica 100% preto
 
 
-    // =====================================================================
-    // 3. TEXTURAS GERADAS POR CÓDIGO (CanvasTexture)
-    //    Funcionam ao abrir o arquivo direto no navegador, sem servidor e sem
-    //    depender de imagens externas. Para usar fotos reais, troque por
-    //    new THREE.TextureLoader().load('imagem.jpg') (com Live Server).
-    // =====================================================================
+    // Geometrias
 
-    // Gerador de números pseudoaleatórios com semente (sempre gera a mesma textura).
-    function mulberry32(semente) {
-      return function () {
-        semente |= 0; semente = (semente + 0x6D2B79F5) | 0;
-        let t = Math.imul(semente ^ (semente >>> 15), 1 | semente);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      };
-    }
+    // Geometria 1: esfera -> usada no Sol e em todos os planetas
+    const esferaGeo = new THREE.SphereGeometry(1, 24, 24);
 
-    // Ruído suave (fbm). Emenda nas laterais, então a textura não mostra "costura" ao girar.
-    function criarRuido(semente) {
-      const rnd = mulberry32(semente);
-      const N = 256;
-      const grade = new Float32Array(N * N);
-      for (let i = 0; i < grade.length; i++) grade[i] = rnd();
-      const suave = t => t * t * (3 - 2 * t);
+    // Geometria 2: torus (anel) -> usada no anel de Saturno
+    const anelGeo = new THREE.TorusGeometry(2, 0.3, 8, 40);
 
-      function amostra(x, y, periodo, desloc) {
-        const xi = Math.floor(x), yi = Math.floor(y);
-        const fx = suave(x - xi), fy = suave(y - yi);
-        const x0 = (((xi % periodo) + periodo) % periodo) + desloc;
-        const x1 = ((((xi + 1) % periodo) + periodo) % periodo) + desloc;
-        const g = (gx, gy) => grade[((gy & 255) * N) + (gx & 255)];
-        const a = g(x0, yi), b = g(x1, yi), c = g(x0, yi + 1), d = g(x1, yi + 1);
-        return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
-      }
+    // Linhas finas que tornam os caminhos orbitais visíveis.
+    const matOrbita = new THREE.LineBasicMaterial({ color: 0x557080, transparent: true, opacity: 0.45 });
 
-      return function fbm(u, v, base, oitavas) {
-        let soma = 0, amp = 0.5, total = 0, freq = base;
-        for (let k = 0; k < oitavas; k++) {
-          soma += amp * amostra(u * freq, v * freq * 0.5, freq, k * 61);
-          total += amp; amp *= 0.5; freq *= 2;
-        }
-        return soma / total;
-      };
-    }
-
-    const LARG_TEX = 512, ALT_TEX = 256;
-
-    function novoCanvas(l = LARG_TEX, a = ALT_TEX) {
-      const c = document.createElement('canvas');
-      c.width = l; c.height = a;
-      return c;
-    }
-
-    // Pinta cada pixel chamando funcaoCor(u, v, cor), onde cor = [r, g, b, a].
-    function pintarPixels(funcaoCor, l = LARG_TEX, a = ALT_TEX) {
-      const cv = novoCanvas(l, a);
-      const ctx = cv.getContext('2d');
-      const img = ctx.createImageData(l, a);
-      const cor = [0, 0, 0, 255];
-      for (let y = 0; y < a; y++) {
-        for (let x = 0; x < l; x++) {
-          cor[3] = 255;
-          funcaoCor(x / l, y / a, cor);
-          const i = (y * l + x) * 4;
-          img.data[i] = cor[0]; img.data[i + 1] = cor[1]; img.data[i + 2] = cor[2]; img.data[i + 3] = cor[3];
-        }
-      }
-      ctx.putImageData(img, 0, 0);
-      return cv;
-    }
-
-    function paraTextura(cv, repetir = false) {
-      const tex = new THREE.CanvasTexture(cv);
-      tex.anisotropy = 8;
-      if (repetir) tex.wrapS = THREE.RepeatWrapping;
-      return tex;
-    }
-
-    function desenharCrateras(cv, semente, quantidade) {
-      const ctx = cv.getContext('2d');
-      const rnd = mulberry32(semente);
-      for (let i = 0; i < quantidade; i++) {
-        const x = rnd() * cv.width, y = rnd() * cv.height, r = 2 + rnd() * rnd() * 14;
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0,0,0,0.20)'; ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1; ctx.stroke();
-      }
-    }
-
-    function desenharCalotas(cv, alfa) {
-      const ctx = cv.getContext('2d');
-      for (const topo of [true, false]) {
-        const g = ctx.createLinearGradient(0, topo ? 0 : cv.height, 0, topo ? 22 : cv.height - 22);
-        g.addColorStop(0, `rgba(255,255,255,${alfa})`);
-        g.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(0, topo ? 0 : cv.height - 22, cv.width, 22);
-      }
-    }
-
-    function corDaPaleta(paleta, t, saida) {
-      t = Math.min(0.9999, Math.max(0, t));
-      const escala = t * (paleta.length - 1), i = Math.floor(escala), f = escala - i;
-      for (let k = 0; k < 3; k++) saida[k] = paleta[i][k] + (paleta[i + 1][k] - paleta[i][k]) * f;
-    }
-
-    const suavizar = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-
-    // Sol: superfície granulada em laranja e amarelo.
-    function texturaSol() {
-      const ruido = criarRuido(11);
-      const cv = pintarPixels((u, v, c) => {
-        const n = ruido(u, v, 6, 5), m = ruido(u + 0.3, v, 12, 3);
-        const q = Math.min(1, Math.max(0, n * 1.5 + (m - 0.5) * 0.5 - 0.15));
-        c[0] = 255; c[1] = 110 + 145 * q; c[2] = 10 + 90 * q * q;
-      });
-      return paraTextura(cv, true);
-    }
-
-    // Planetas rochosos: ruído entre duas cores + crateras.
-    function texturaRochosa(semente, corA, corB, crateras, calotas) {
-      const ruido = criarRuido(semente);
-      const cv = pintarPixels((u, v, c) => {
-        const n = ruido(u, v, 8, 5);
-        for (let i = 0; i < 3; i++) c[i] = corA[i] + (corB[i] - corA[i]) * n;
-      });
-      if (crateras) desenharCrateras(cv, semente + 1, crateras);
-      if (calotas) desenharCalotas(cv, 0.85);
-      return paraTextura(cv);
-    }
-
-    // Planetas gasosos: faixas horizontais distorcidas por ruído.
-    function texturaGasosa(semente, paleta, faixas, turbulencia, mancha) {
-      const ruido = criarRuido(semente);
-      const cv = pintarPixels((u, v, c) => {
-        const n = ruido(u, v, 4, 4);
-        const t = 0.5 + 0.5 * Math.sin(v * Math.PI * faixas + (n - 0.5) * turbulencia * 6);
-        corDaPaleta(paleta, t, c);
-      });
-      if (mancha) {
-        const ctx = cv.getContext('2d');
-        ctx.save();
-        ctx.translate(cv.width * mancha.u, cv.height * mancha.v);
-        ctx.scale(2.2, 1);
-        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, mancha.r);
-        g.addColorStop(0, mancha.cor); g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(0, 0, mancha.r, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-      }
-      return paraTextura(cv);
-    }
-
-    function texturaTerra() {
-      const ruido = criarRuido(5);
-      const LIMIAR = 0.54; // acima disso é terra, abaixo é oceano
-      const cv = pintarPixels((u, v, c) => {
-        const n = ruido(u, v, 4, 6);
-        const lat = Math.abs(v - 0.5) * 2;
-        let r, g, b;
-        if (n < LIMIAR) {                       // oceano: mais fundo = mais escuro
-          const p = n / LIMIAR;
-          r = 8 + 22 * p; g = 35 + 80 * p; b = 100 + 100 * p;
-        } else {                                // continente: verde para marrom
-          const p = (n - LIMIAR) / (1 - LIMIAR);
-          r = 45 + 140 * p; g = 125 - 10 * p; b = 45 + 30 * p;
-        }
-        const gelo = suavizar(0.84, 0.93, lat + (n - 0.5) * 0.1);
-        c[0] = r + (245 - r) * gelo; c[1] = g + (250 - g) * gelo; c[2] = b + (255 - b) * gelo;
-      });
-      return paraTextura(cv);
-    }
-
-    function texturaNuvens() {
-      const ruido = criarRuido(77);
-      const cv = pintarPixels((u, v, c) => {
-        const n = ruido(u, v, 5, 5);
-        c[0] = c[1] = c[2] = 255;
-        c[3] = 255 * suavizar(0.52, 0.78, n) * 0.9;
-      });
-      return paraTextura(cv);
-    }
-
-    // Anel de Saturno: o eixo horizontal da imagem representa a distância do centro.
-    function texturaAnel() {
-      const ruido = criarRuido(9);
-      const cv = pintarPixels((u, v, c) => {
-        const faixa = 0.55 + 0.45 * Math.sin(u * 70 + ruido(u, 0, 10, 3) * 8);
-        const divisao = suavizar(0.60, 0.62, u) * (1 - suavizar(0.67, 0.69, u)); // divisão de Cassini
-        c[0] = 200 + 40 * faixa; c[1] = 180 + 40 * faixa; c[2] = 140 + 40 * faixa;
-        c[3] = 255 * (0.25 + 0.65 * faixa) * (1 - 0.92 * divisao) * (0.35 + 0.65 * suavizar(0, 0.08, u));
-      }, 512, 4);
-      return paraTextura(cv);
-    }
-
-    // Brilho suave ao redor do Sol.
-    function texturaBrilho() {
-      const cv = novoCanvas(128, 128);
-      const ctx = cv.getContext('2d');
-      const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-      g.addColorStop(0, 'rgba(255,235,160,1)');
-      g.addColorStop(0.25, 'rgba(255,180,60,0.55)');
-      g.addColorStop(1, 'rgba(255,120,0,0)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128);
-      return new THREE.CanvasTexture(cv);
-    }
-
-
-    // =====================================================================
-    // 4. DADOS DOS ASTROS (mostrados no painel ao clicar)
-    // =====================================================================
-
-    const INFO = {
-      sol:      { nome: 'Sol', tipo: 'Estrela', diametro: '1.392.700 km', distancia: '—', periodo: '—',
-                  curiosidade: 'Concentra cerca de 99,86% de toda a massa do Sistema Solar. A superfície tem cerca de 5.500 °C.' },
-      mercurio: { nome: 'Mercúrio', tipo: 'Planeta rochoso', diametro: '4.879 km', distancia: '57,9 milhões de km', periodo: '88 dias',
-                  curiosidade: 'É o menor planeta. A temperatura vai de -180 °C à noite a 430 °C de dia.' },
-      venus:    { nome: 'Vênus', tipo: 'Planeta rochoso', diametro: '12.104 km', distancia: '108,2 milhões de km', periodo: '225 dias',
-                  curiosidade: 'É o planeta mais quente (cerca de 465 °C) e gira ao contrário. Um dia lá dura mais que um ano.' },
-      terra:    { nome: 'Terra', tipo: 'Planeta rochoso', diametro: '12.742 km', distancia: '149,6 milhões de km', periodo: '365,25 dias',
-                  curiosidade: 'Único mundo conhecido com vida. Cerca de 71% da superfície é coberta por oceanos.' },
-      lua:      { nome: 'Lua', tipo: 'Satélite natural da Terra', diametro: '3.474 km', distancia: '384.400 km da Terra', periodo: '27,3 dias',
-                  curiosidade: 'Mostra sempre a mesma face para a Terra e se afasta cerca de 3,8 cm por ano.' },
-      marte:    { nome: 'Marte', tipo: 'Planeta rochoso', diametro: '6.779 km', distancia: '227,9 milhões de km', periodo: '687 dias',
-                  curiosidade: 'Abriga o Monte Olimpo, vulcão de cerca de 22 km de altura, o maior do Sistema Solar.' },
-      jupiter:  { nome: 'Júpiter', tipo: 'Gigante gasoso', diametro: '139.820 km', distancia: '778,5 milhões de km', periodo: '11,9 anos',
-                  curiosidade: 'A Grande Mancha Vermelha é uma tempestade observada há séculos, maior que a Terra.' },
-      saturno:  { nome: 'Saturno', tipo: 'Gigante gasoso', diametro: '116.460 km', distancia: '1,43 bilhão de km', periodo: '29,5 anos',
-                  curiosidade: 'É menos denso que a água. Seus anéis são feitos de gelo e rocha.' },
-      urano:    { nome: 'Urano', tipo: 'Gigante de gelo', diametro: '50.724 km', distancia: '2,87 bilhões de km', periodo: '84 anos',
-                  curiosidade: 'O eixo é inclinado cerca de 98°, então o planeta gira "deitado".' },
-      netuno:   { nome: 'Netuno', tipo: 'Gigante de gelo', diametro: '49.244 km', distancia: '4,50 bilhões de km', periodo: '165 anos',
-                  curiosidade: 'Tem os ventos mais rápidos do Sistema Solar, de até cerca de 2.000 km/h.' },
-      cometa:   { nome: 'Cometa', tipo: 'Corpo de gelo (exemplo fictício)', diametro: '—', distancia: 'órbita elíptica', periodo: 'cerca de 63 s nesta simulação',
-                  curiosidade: 'A cauda aponta sempre para longe do Sol, e o cometa acelera ao passar perto dele.' },
-      nave:     { nome: 'Sonda exploradora', tipo: 'Nave controlada por você', diametro: '—', distancia: '—', periodo: '—',
-                  curiosidade: 'Use W, A, S, D, R, F e Shift para explorar. O Sol e os planetas repelem a nave.' }
-    };
-
-
-    // =====================================================================
-    // 5. GEOMETRIAS COMPARTILHADAS E LISTAS DE CONTROLE
-    // =====================================================================
-
-    const esferaGeo = new THREE.SphereGeometry(1, 48, 32);
-
-    const clicaveis = [];    // objetos que o Raycaster consegue selecionar
-    const obstaculos = [];   // astros que a nave não consegue atravessar
-    const planetas = [];     // planetas com órbita e rotação próprias
-    const rotulos = [];      // nomes flutuantes na tela
-
-    const matOrbita = new THREE.LineBasicMaterial({ color: 0x557080, transparent: true, opacity: 0.4 });
-
-    function criarLinhaOrbita(raio, pai) {
+    function criarOrbita(raio) {
       const pontos = [];
-      for (let i = 0; i < 160; i++) {
-        const ang = (i / 160) * Math.PI * 2;
-        pontos.push(new THREE.Vector3(Math.cos(ang) * raio, 0, Math.sin(ang) * raio));
+      for (let i = 0; i < 128; i++) {
+        const angulo = (i / 128) * Math.PI * 2;
+        pontos.push(new THREE.Vector3(Math.cos(angulo) * raio, 0, Math.sin(angulo) * raio));
       }
-      pai.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pontos), matOrbita));
-    }
-
-    function criarRotulo(objeto, nome, alturaExtra) {
-      const el = document.createElement('div');
-      el.className = 'rotulo';
-      el.textContent = nome;
-      document.getElementById('rotulos').appendChild(el);
-      rotulos.push({ el, objeto, alturaExtra });
-    }
-
-
-    // =====================================================================
-    // 6. OBJETOS DA CENA
-    // =====================================================================
-
-    // ---- 6.1 Fundo de estrelas (Points) ----
-    const estrelasGeo = new THREE.BufferGeometry();
-    const NUM_ESTRELAS = 2500;
-    const estPos = new Float32Array(NUM_ESTRELAS * 3);
-    const estCor = new Float32Array(NUM_ESTRELAS * 3);
-    (function () {
-      const rnd = mulberry32(2024);
-      const tons = [[1, 1, 1], [0.7, 0.8, 1], [1, 0.9, 0.7]];
-      for (let i = 0; i < NUM_ESTRELAS; i++) {
-        // ponto aleatório na superfície de uma esfera grande ao redor de tudo
-        const z = rnd() * 2 - 1, ang = rnd() * Math.PI * 2, raio = 500 + rnd() * 300;
-        const xy = Math.sqrt(1 - z * z);
-        estPos.set([Math.cos(ang) * xy * raio, z * raio, Math.sin(ang) * xy * raio], i * 3);
-        const tom = tons[Math.floor(rnd() * tons.length)], brilho = 0.5 + rnd() * 0.5;
-        estCor.set([tom[0] * brilho, tom[1] * brilho, tom[2] * brilho], i * 3);
-      }
-    })();
-    estrelasGeo.setAttribute('position', new THREE.BufferAttribute(estPos, 3));
-    estrelasGeo.setAttribute('color', new THREE.BufferAttribute(estCor, 3));
-    const matEstrelas = new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, transparent: true });
-    const estrelas = new THREE.Points(estrelasGeo, matEstrelas);
-    estrelas.frustumCulled = false;
-    scene.add(estrelas);
-
-    // ---- 6.2 Sol (textura animada + brilho) ----
-    const texSol = texturaSol();
-    const sol = new THREE.Mesh(esferaGeo, new THREE.MeshBasicMaterial({ map: texSol })); // emite luz própria
-    sol.scale.setScalar(3);
-    sol.userData = { info: INFO.sol, raio: 3, distFoco: 16 };
-    scene.add(sol);
-    clicaveis.push(sol);
-    obstaculos.push(sol);
-    criarRotulo(sol, 'Sol', 4.2);
-
-    const brilhoSol = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: texturaBrilho(), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false
-    }));
-    brilhoSol.scale.set(17, 17, 1);
-    scene.add(brilhoSol);
-
-    // ---- 6.3 Planetas ----
-    // Hierarquia de cada planeta:
-    //   orbita (gira em torno do Sol) > ponto (fica na distância) > inclinado (inclinação do eixo) > mesh (gira em torno de si)
-    function criarPlaneta(cfg) {
-      const orbita = new THREE.Object3D();
-      orbita.rotation.y = cfg.fase;                 // cada planeta começa em um ponto diferente da órbita
+      const orbita = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pontos), matOrbita);
       scene.add(orbita);
-      criarLinhaOrbita(cfg.distancia, scene);
-
-      const ponto = new THREE.Object3D();
-      ponto.position.x = cfg.distancia;
-      orbita.add(ponto);
-
-      const inclinado = new THREE.Object3D();
-      inclinado.rotation.z = cfg.inclinacao || 0;
-      ponto.add(inclinado);
-
-      const mesh = new THREE.Mesh(
-        esferaGeo,
-        new THREE.MeshStandardMaterial({ map: cfg.textura, roughness: 1, metalness: 0 })
-      );
-      mesh.scale.setScalar(cfg.raio);
-      mesh.userData = { info: INFO[cfg.chave], raio: cfg.raio, distFoco: cfg.raio * 4 + 4 };
-      inclinado.add(mesh);
-
-      planetas.push({ mesh, orbita, velOrbita: cfg.velOrbita, velRotacao: cfg.velRotacao });
-      clicaveis.push(mesh);
-      obstaculos.push(mesh);
-      criarRotulo(mesh, INFO[cfg.chave].nome, cfg.raio * 1.5);
-      return { mesh, ponto, inclinado };
     }
 
-    const mercurio = criarPlaneta({ chave: 'mercurio', raio: 0.45, distancia: 7,    velOrbita: 0.60,  velRotacao: 0.4,  inclinacao: 0.0,  fase: 0.5,
-                                    textura: texturaRochosa(21, [95, 92, 90], [175, 170, 165], 140, false) });
-    const venus    = criarPlaneta({ chave: 'venus',    raio: 0.8,  distancia: 9.5,  velOrbita: 0.45,  velRotacao: -0.15, inclinacao: 0.05, fase: 2.2,
-                                    textura: texturaGasosa(3, [[200, 160, 90], [235, 205, 140], [250, 235, 190]], 3, 4, null) });
-    const terra    = criarPlaneta({ chave: 'terra',    raio: 0.9,  distancia: 12,   velOrbita: 0.36,  velRotacao: 1.2,  inclinacao: 0.41, fase: 4.0,
-                                    textura: texturaTerra() });
-    const marte    = criarPlaneta({ chave: 'marte',    raio: 0.6,  distancia: 14.5, velOrbita: 0.30,  velRotacao: 1.1,  inclinacao: 0.44, fase: 1.0,
-                                    textura: texturaRochosa(41, [150, 60, 35], [215, 120, 70], 40, true) });
-    const jupiter  = criarPlaneta({ chave: 'jupiter',  raio: 2.0,  distancia: 19,   velOrbita: 0.21,  velRotacao: 2.2,  inclinacao: 0.05, fase: 5.3,
-                                    textura: texturaGasosa(7, [[120, 80, 50], [205, 160, 115], [240, 225, 200], [170, 110, 75]], 9, 1.2,
-                                                           { u: 0.7, v: 0.62, r: 14, cor: 'rgba(185,60,40,0.95)' }) });
-    const saturno  = criarPlaneta({ chave: 'saturno',  raio: 1.7,  distancia: 24.5, velOrbita: 0.15,  velRotacao: 2.0,  inclinacao: 0.47, fase: 3.1,
-                                    textura: texturaGasosa(13, [[190, 165, 120], [230, 210, 160], [245, 232, 200]], 7, 0.5, null) });
-    const urano    = criarPlaneta({ chave: 'urano',    raio: 1.2,  distancia: 29.5, velOrbita: 0.105, velRotacao: 1.2,  inclinacao: 1.71, fase: 0.2,
-                                    textura: texturaGasosa(17, [[150, 220, 225], [185, 240, 240], [160, 225, 230]], 4, 0.3, null) });
-    const netuno   = criarPlaneta({ chave: 'netuno',   raio: 1.15, distancia: 34,   velOrbita: 0.075, velRotacao: 1.4,  inclinacao: 0.49, fase: 2.6,
-                                    textura: texturaGasosa(19, [[30, 60, 170], [55, 95, 210], [90, 140, 240]], 6, 1.5,
-                                                           { u: 0.3, v: 0.4, r: 10, cor: 'rgba(15,30,110,0.8)' }) });
 
-    // ---- 6.4 Nuvens da Terra (segunda esfera, um pouco maior e mais rápida) ----
-    const nuvens = new THREE.Mesh(
-      esferaGeo,
-      new THREE.MeshStandardMaterial({ map: texturaNuvens(), transparent: true, depthWrite: false, roughness: 1 })
-    );
-    nuvens.scale.setScalar(0.9 * 1.025);
-    terra.inclinado.add(nuvens);
+    // Texturas: uma para cada corpo do sistema
+    const texLoader     = new THREE.TextureLoader();
+    const texturaSol      = texLoader.load('sol.jpg');
+    const texturaMercurio = texLoader.load('mercurio.jpg');
+    const texturaVenus    = texLoader.load('venus.jpg');
+    const texturaTerra    = texLoader.load('terra.jpg');
+    const texturaMarte    = texLoader.load('marte.jpg');
+    const texturaJupiter  = texLoader.load('jupiter.jpg');
+    const texturaSaturno  = texLoader.load('saturno.jpg');
+    const texturaAnel     = texLoader.load('anel.jpg');
+    const texturaUrano    = texLoader.load('urano.jpg');
+    const texturaNetuno   = texLoader.load('netuno.jpg');
 
-    // ---- 6.5 Anel de Saturno (RingGeometry com textura) ----
-    const RAIO_INT = 2.1, RAIO_EXT = 3.7;
-    const anelGeo = new THREE.RingGeometry(RAIO_INT, RAIO_EXT, 96);
-    (function () {
-      // O UV padrão do RingGeometry não é radial; aqui ele passa a variar do centro para a borda.
-      const pos = anelGeo.attributes.position, uv = anelGeo.attributes.uv, v3 = new THREE.Vector3();
-      for (let i = 0; i < pos.count; i++) {
-        v3.fromBufferAttribute(pos, i);
-        uv.setXY(i, (v3.length() - RAIO_INT) / (RAIO_EXT - RAIO_INT), 0.5);
-      }
-    })();
-    const anelSaturno = new THREE.Mesh(anelGeo, new THREE.MeshStandardMaterial({
-      map: texturaAnel(), side: THREE.DoubleSide, transparent: true, roughness: 1, depthWrite: false
-    }));
-    anelSaturno.rotation.x = Math.PI / 2;  // deita o anel no plano do equador
-    saturno.inclinado.add(anelSaturno);
+    // Materiais
 
-    // ---- 6.6 Lua (orbita a Terra e sempre mostra a mesma face) ----
-    const luaPivo = new THREE.Object3D();
-    terra.ponto.add(luaPivo);
-    criarLinhaOrbita(1.9, luaPivo);
-    const lua = new THREE.Mesh(
-      esferaGeo,
-      new THREE.MeshStandardMaterial({ map: texturaRochosa(31, [110, 110, 112], [200, 200, 200], 90, false), roughness: 1 })
-    );
-    lua.scale.setScalar(0.25);
-    lua.position.x = 1.9;
-    lua.userData = { info: INFO.lua, raio: 0.25, distFoco: 5 };
-    luaPivo.add(lua);
-    clicaveis.push(lua);
-    obstaculos.push(lua);
+    const matSol      = new THREE.MeshBasicMaterial({ map: texturaSol, color: 0xffdd00 }); // Sol emite luz própria, não reage à luz
+    const matMercurio  = new THREE.MeshStandardMaterial({ map: texturaMercurio, color: 0xaaaaaa });
+    const matVenus     = new THREE.MeshStandardMaterial({ map: texturaVenus, color: 0xe0c16c });
+    const matTerra     = new THREE.MeshStandardMaterial({ map: texturaTerra, color: 0xffffff });
+    const matMarte     = new THREE.MeshStandardMaterial({ map: texturaMarte, color: 0xff4500 });
+    const matJupiter    = new THREE.MeshStandardMaterial({ map: texturaJupiter, color: 0xd2a679 });
+    const matSaturno   = new THREE.MeshStandardMaterial({ map: texturaSaturno, color: 0xf5deb3 });
+    const matAnel      = new THREE.MeshStandardMaterial({ map: texturaAnel, color: 0xcccccc, side: THREE.DoubleSide });
+    const matUrano     = new THREE.MeshStandardMaterial({ map: texturaUrano, color: 0x66ffff });
+    const matNetuno    = new THREE.MeshStandardMaterial({ map: texturaNetuno, color: 0x3333ff });
 
-    // ---- 6.7 Cinturão de asteroides (InstancedMesh: 600 pedras com uma só geometria) ----
-    const cinturao = new THREE.Group();
-    scene.add(cinturao);
-    (function () {
-      const N = 600, rnd = mulberry32(99);
-      const rochas = new THREE.InstancedMesh(
-        new THREE.IcosahedronGeometry(1, 0),
-        new THREE.MeshStandardMaterial({ map: texturaRochosa(51, [90, 84, 78], [170, 160, 150], 60, false), roughness: 1, flatShading: true }),
-        N
-      );
-      const dummy = new THREE.Object3D();
-      for (let i = 0; i < N; i++) {
-        const ang = rnd() * Math.PI * 2, r = 15.4 + rnd() * 1.4;
-        dummy.position.set(Math.cos(ang) * r, (rnd() - 0.5) * 0.7, Math.sin(ang) * r);
-        dummy.rotation.set(rnd() * 6, rnd() * 6, rnd() * 6);
-        const s = 0.05 + rnd() * rnd() * 0.16;
-        dummy.scale.set(s, s * (0.6 + rnd() * 0.6), s * (0.7 + rnd() * 0.6));
-        dummy.updateMatrix();
-        rochas.setMatrixAt(i, dummy.matrix);
-      }
-      rochas.frustumCulled = false; // sem isso o cinturão some quando o centro dele sai da tela
-      cinturao.add(rochas);
-    })();
 
-    // ---- 6.8 Cometa (órbita elíptica calculada com seno e cosseno) ----
-    const COMETA = { a: 46, e: 0.85 };
-    COMETA.b = COMETA.a * Math.sqrt(1 - COMETA.e * COMETA.e);
-    const planoCometa = new THREE.Euler(0.5, 0, 0.2); // inclinação do plano da órbita
+    // Criação dos planetas.
 
-    function posicaoCometa(E, saida) {
-      saida.set(COMETA.a * (Math.cos(E) - COMETA.e), 0, COMETA.b * Math.sin(E)).applyEuler(planoCometa);
-      return saida;
+    const corpos = []; // Guarda os planetas pra facilitar aplicar a rotação depois.
+    const orbitas = []; // Guarda as trajetórias para animar cada planeta.
+
+    function criarCorpo(geometria, material, raio, velocidade) {
+      const orbita = new THREE.Object3D();
+      scene.add(orbita);
+      criarOrbita(raio);
+
+      const mesh = new THREE.Mesh(geometria, material);
+      mesh.position.set(raio, 0, 0);
+      orbita.add(mesh);
+      corpos.push(mesh);
+      orbitas.push({ grupo: orbita, velocidade });
+      return mesh;
     }
 
-    const cometa = new THREE.Group();
-    const cometaCabeca = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.35, 1),
-      new THREE.MeshStandardMaterial({ color: 0xcfe6ff, emissive: 0x3a6a9a, roughness: 0.8, flatShading: true })
-    );
-    cometaCabeca.userData = { info: INFO.cometa, raio: 0.35, distFoco: 6 };
-    const cometaCaudaGeo = new THREE.ConeGeometry(0.5, 6, 16, 1, true);
-    cometaCaudaGeo.translate(0, 3, 0);           // base do cone na cabeça (Y = 0) e ponta em +Y
-    const cometaCauda = new THREE.Mesh(cometaCaudaGeo, new THREE.MeshBasicMaterial({
-      color: 0x9fd8ff, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide
-    }));
-    cometa.add(cometaCabeca, cometaCauda);
-    scene.add(cometa);
-    clicaveis.push(cometaCabeca);
-    criarRotulo(cometaCabeca, 'Cometa', 1.2);
+    const sol      = new THREE.Mesh(esferaGeo, matSol);
+    scene.add(sol); 
+    const mercurio = criarCorpo(esferaGeo, matMercurio,  5, 0.020);
+    const venus    = criarCorpo(esferaGeo, matVenus,     7, 0.015);
+    const terra    = criarCorpo(esferaGeo, matTerra,     9, 0.012);
+    const marte    = criarCorpo(esferaGeo, matMarte,     11, 0.010);
+    const jupiter  = criarCorpo(esferaGeo, matJupiter,   15, 0.007);
+    const saturno  = criarCorpo(esferaGeo, matSaturno,   19, 0.005);
+    const urano    = criarCorpo(esferaGeo, matUrano,     23, 0.0035);
+    const netuno   = criarCorpo(esferaGeo, matNetuno,    27, 0.0025);
 
-    (function () { // linha do caminho do cometa
-      const pontos = [], tmp = new THREE.Vector3();
-      for (let i = 0; i < 200; i++) pontos.push(posicaoCometa((i / 200) * Math.PI * 2, tmp).clone());
-      scene.add(new THREE.LineLoop(
-        new THREE.BufferGeometry().setFromPoints(pontos),
-        new THREE.LineBasicMaterial({ color: 0x6a8fb0, transparent: true, opacity: 0.18 })
-      ));
-    })();
+    // Resumo de cada corpo, mostrado no painel de informações ao clicar
+    const infoCorpos = new Map([
+      [sol,      { nome: 'Sol',     resumo: 'Estrela no centro do sistema. Sua gravidade mantém todos os planetas em órbita.' }],
+      [mercurio, { nome: 'Mercúrio', resumo: 'O menor planeta e o mais próximo do Sol. Não possui atmosfera relevante.' }],
+      [venus,    { nome: 'Vênus',    resumo: 'Planeta mais quente do sistema devido ao efeito estufa intenso em sua atmosfera.' }],
+      [terra,    { nome: 'Terra',    resumo: 'Único planeta conhecido com vida. Possui 23,5° de inclinação axial.' }],
+      [marte,    { nome: 'Marte',    resumo: 'Conhecido como "planeta vermelho" por causa do óxido de ferro em sua superfície.' }],
+      [jupiter,  { nome: 'Júpiter',  resumo: 'O maior planeta do sistema solar, um gigante gasoso com dezenas de luas.' }],
+      [saturno,  { nome: 'Saturno',  resumo: 'Famoso por seus anéis, formados por gelo e partículas de rocha.' }],
+      [urano,    { nome: 'Urano',    resumo: 'Gira praticamente "deitado", com inclinação axial de quase 98°.' }],
+      [netuno,   { nome: 'Netuno',   resumo: 'Planeta mais distante do Sol, com os ventos mais fortes do sistema solar.' }],
+    ]);
 
-    // ---- 6.9 Nave controlada pelo teclado (Cilindro + Cone + Caixas + Esfera) ----
-    const nave = new THREE.Group();
-    nave.rotation.order = 'YXZ';   // primeiro gira (yaw), depois inclina (pitch) e por fim rola (roll)
-    const matCasco  = new THREE.MeshStandardMaterial({ color: 0xdde6f0, metalness: 0.2, roughness: 0.4 });
-    const matAsa    = new THREE.MeshStandardMaterial({ color: 0x3a7bd5, metalness: 0.2, roughness: 0.5 });
-    const matVidro  = new THREE.MeshStandardMaterial({ color: 0x66e0ff, emissive: 0x2288aa, roughness: 0.1 });
-
-    const corpoNave = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 1.2, 16), matCasco);
-    corpoNave.rotation.x = -Math.PI / 2;
-    const narizNave = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.5, 16), matCasco);
-    narizNave.rotation.x = -Math.PI / 2;
-    narizNave.position.z = -0.85;
-    const asasNave = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.04, 0.5), matAsa);
-    asasNave.position.z = 0.15;
-    const leme = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.35, 0.4), matAsa);
-    leme.position.set(0, 0.22, 0.45);
-    const cabine = new THREE.Mesh(esferaGeo, matVidro);
-    cabine.scale.set(0.12, 0.1, 0.25);
-    cabine.position.set(0, 0.17, -0.2);
-
-    const chamaGeo = new THREE.ConeGeometry(0.11, 0.7, 12);
-    chamaGeo.translate(0, 0.35, 0);              // base da chama na origem, para escalar a partir do motor
-    const chama = new THREE.Mesh(chamaGeo, new THREE.MeshBasicMaterial({ color: 0xff9a3c, transparent: true, opacity: 0.85 }));
-    chama.rotation.x = Math.PI / 2;
-    chama.position.z = 0.6;
-    const luzMotor = new THREE.PointLight(0xff8844, 0, 5);
-    luzMotor.position.z = 1.0;
-
-    nave.add(corpoNave, narizNave, asasNave, leme, cabine, chama, luzMotor);
-    nave.scale.setScalar(1.1);
-    nave.position.set(8, 1.5, 26);
-    nave.userData = { info: INFO.nave, raio: 0.9, distFoco: 6 };
-    scene.add(nave);
-    clicaveis.push(nave);
-    criarRotulo(nave, 'Nave', 1.2);
-
-    // ---- 6.10 Marcador de seleção (Torus ao redor do astro clicado) ----
-    const marcador = new THREE.Mesh(
-      new THREE.TorusGeometry(1, 0.025, 8, 64),
-      new THREE.MeshBasicMaterial({ color: 0x6fd3ff, transparent: true, opacity: 0.9 })
-    );
-    marcador.visible = false;
-    scene.add(marcador);
-
-
-    // =====================================================================
-    // 7. ESTADO GERAL E INTERFACE (HUD, painel de informações, nomes)
-    // =====================================================================
-
-    const ESCALAS_TEMPO = [0.25, 0.5, 1, 2, 4, 8];
-    let idxEscala = 2;
-    let pausado = false;
-    let tempoReal = 0;   // segundos reais decorridos
-    let tempoSim = 0;    // tempo da simulação (respeita pausa e velocidade)
-    let mostrarNomes = true;
-
-    const relogio = new THREE.Clock();
-    const elTempo = document.getElementById('st-tempo');
-    const elNave = document.getElementById('st-nave');
-    const elFoco = document.getElementById('st-foco');
-    const elInfo = document.getElementById('info');
+    const painelInfo        = document.getElementById('painelInfo');
+    const painelInfoTitulo  = document.getElementById('painelInfoTitulo');
+    const painelInfoTexto   = document.getElementById('painelInfoTexto');
 
     function mostrarInfo(info) {
-      if (!info) { elInfo.classList.remove('ativo'); return; }
-      elInfo.innerHTML =
-        `<h2>${info.nome}</h2>` +
-        `<p class="tipo">${info.tipo}</p>` +
-        `<dl><dt>Diâmetro</dt><dd>${info.diametro}</dd>` +
-        `<dt>Distância</dt><dd>${info.distancia}</dd>` +
-        `<dt>Órbita</dt><dd>${info.periodo}</dd></dl>` +
-        `<p class="curiosidade">${info.curiosidade}</p>` +
-        `<p class="dica">Esc volta à visão geral.</p>`;
-      elInfo.classList.add('ativo');
-    }
-
-    const tmpV = new THREE.Vector3();
-    function atualizarRotulos() {
-      const w = window.innerWidth, h = window.innerHeight;
-      rotulos.forEach(r => {
-        if (!mostrarNomes) { r.el.style.display = 'none'; return; }
-        r.objeto.getWorldPosition(tmpV);
-        tmpV.y += r.alturaExtra;
-        tmpV.project(camera);
-        const visivel = tmpV.z < 1 && Math.abs(tmpV.x) < 1.05 && Math.abs(tmpV.y) < 1.05;
-        r.el.style.display = visivel ? 'block' : 'none';
-        if (visivel) {
-          const x = (tmpV.x * 0.5 + 0.5) * w, y = (-tmpV.y * 0.5 + 0.5) * h;
-          r.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
-        }
-      });
-    }
-
-
-    // =====================================================================
-    // 8. INTERAÇÃO POR TECLADO (WASD move a nave)
-    // =====================================================================
-
-    const teclas = {}; // guarda quais teclas estão pressionadas agora
-
-    window.addEventListener('keydown', e => {
-      teclas[e.code] = true;
-      if (e.repeat) return;
-      switch (e.code) {
-        case 'KeyC': definirFoco(foco === nave ? null : nave); break;
-        case 'Escape': definirFoco(null); break;
-        case 'KeyP': pausado = !pausado; break;
-        case 'KeyL': mostrarNomes = !mostrarNomes; break;
-        case 'KeyH': document.getElementById('ajuda').classList.toggle('oculto'); break;
-        case 'Equal': case 'NumpadAdd': idxEscala = Math.min(idxEscala + 1, ESCALAS_TEMPO.length - 1); break;
-        case 'Minus': case 'NumpadSubtract': idxEscala = Math.max(idxEscala - 1, 0); break;
+      if (!info) {
+        painelInfo.style.display = 'none';
+        return;
       }
-    });
-    window.addEventListener('keyup', e => { teclas[e.code] = false; });
-    window.addEventListener('blur', () => { for (const k in teclas) teclas[k] = false; });
-
-    const naveEstado = { vel: 0, velY: 0, yaw: 0 };
-    const frenteNave = new THREE.Vector3();
-
-    function atualizarNave(dt, t) {
-      const acelera = (teclas.KeyW ? 1 : 0) - (teclas.KeyS ? 1 : 0);
-      const gira    = (teclas.KeyA ? 1 : 0) - (teclas.KeyD ? 1 : 0);
-      const sobe    = (teclas.KeyR ? 1 : 0) - (teclas.KeyF ? 1 : 0);
-      const turbo   = (teclas.ShiftLeft || teclas.ShiftRight) ? 2.5 : 1;
-
-      // Aceleração com atrito: a nave desliza um pouco ao soltar as teclas.
-      naveEstado.vel  += acelera * 14 * turbo * dt;
-      naveEstado.vel  *= Math.exp(-1.2 * dt);
-      naveEstado.velY += sobe * 10 * dt;
-      naveEstado.velY *= Math.exp(-2 * dt);
-      naveEstado.yaw  += gira * 1.8 * dt;
-
-      frenteNave.set(-Math.sin(naveEstado.yaw), 0, -Math.cos(naveEstado.yaw));
-      nave.position.addScaledVector(frenteNave, naveEstado.vel * dt);
-      nave.position.y += naveEstado.velY * dt;
-
-      // Aparência: gira, inclina o nariz ao subir e rola nas curvas.
-      const suav = Math.min(1, 6 * dt);
-      nave.rotation.y = naveEstado.yaw;
-      nave.rotation.x += (sobe * 0.25 - nave.rotation.x) * suav;
-      nave.rotation.z += (gira * 0.55 - nave.rotation.z) * suav;
-
-      // Chama do motor: cresce com o empuxo e "tremula" com Math.sin.
-      const empuxo = 0.35 + 0.65 * Math.max(acelera, 0) * (turbo > 1 ? 1.6 : 1);
-      const tremor = 0.85 + 0.15 * Math.sin(t * 45);
-      chama.scale.set(tremor, empuxo * tremor, tremor);
-      luzMotor.intensity = empuxo * 0.8 * tremor;
-
-      // Campo de força: o Sol e os planetas empurram a nave para fora.
-      obstaculos.forEach(obs => {
-        obs.getWorldPosition(tmpV);
-        const distMin = obs.userData.raio * 1.15 + 0.6;
-        const d = nave.position.distanceTo(tmpV);
-        if (d < distMin) {
-          nave.position.sub(tmpV).setLength(distMin).add(tmpV);
-          naveEstado.vel *= 0.6;
-        }
-      });
-      if (nave.position.length() > 130) nave.position.setLength(130); // limite do mapa
+      painelInfoTitulo.textContent = info.nome;
+      painelInfoTexto.textContent = info.resumo;
+      painelInfo.style.display = 'block';
     }
 
 
-    // =====================================================================
-    // 9. CÂMERA COM FOCO (segue o astro selecionado)
-    // =====================================================================
+    // anel de Saturno: possui a mesma posição do planeta, mas feito de geometria diferente.
+    const anelSaturno = new THREE.Mesh(anelGeo, matAnel);
+    saturno.add(anelSaturno);
+    anelSaturno.position.set(0, 0, 0);
+    // Não está entre a lista de corpos, pois possui rotação própria.
 
-    let foco = null;                              // astro (ou a nave) que a câmera acompanha
-    let vooAte = 0, voltandoAte = 0;              // janelas de tempo das transições suaves
-    const focoPosAnterior = new THREE.Vector3();
-    const tmpPos = new THREE.Vector3(), tmpDelta = new THREE.Vector3(), tmpDest = new THREE.Vector3();
 
-    function definirFoco(obj) {
-      foco = obj;
-      if (obj) {
-        obj.getWorldPosition(focoPosAnterior);
-        vooAte = tempoReal + 1.4;
-        voltandoAte = 0;
-      } else {
-        vooAte = 0;
-        voltandoAte = tempoReal + 1.6;            // volta suavemente para a visão geral
-      }
-      mostrarInfo(obj ? obj.userData.info : null);
-      elFoco.textContent = obj ? obj.userData.info.nome : 'livre';
-    }
+    // Rotação em 3 planetas (inclinação axial real dos planetas)
 
-    function atualizarCamera(dt) {
-      const k = 1 - Math.exp(-5 * dt);
-      if (foco) {
-        foco.getWorldPosition(tmpPos);
-        // a câmera anda junto com o astro, mantendo a distância e o ângulo escolhidos
-        camera.position.add(tmpDelta.subVectors(tmpPos, focoPosAnterior));
-        focoPosAnterior.copy(tmpPos);
-        if (tempoReal < vooAte) {                 // aproximação suave ao selecionar
-          controls.target.lerp(tmpPos, k);
-          tmpDest.subVectors(camera.position, tmpPos);
-          if (tmpDest.lengthSq() < 1e-6) tmpDest.set(0, 0.3, 1);
-          tmpDest.setLength(foco.userData.distFoco).add(tmpPos);
-          camera.position.lerp(tmpDest, k);
-        } else {
-          controls.target.copy(tmpPos);
-        }
-      } else if (tempoReal < voltandoAte) {
-        controls.target.lerp(ORIGEM, k);
-        camera.position.lerp(POSICAO_INICIAL_CAMERA, k);
-      }
+    terra.rotation.z = 0.41;          // Terra tem ~23,5° de inclinação
+    urano.rotation.z = 1.71;          // Urano é o mais inclinado (~98°), "deitado"
+    anelSaturno.rotation.x = 1.2;     // inclina o anel pra ficar visível, como na realidade
+
+
+    // Escala diferente para 3 objetos do cenário.
+
+    sol.scale.set(3, 3, 3);           // Sol é gigante comparado aos planetas
+    jupiter.scale.set(2, 2, 2);       // Júpiter é o maior planeta
+    mercurio.scale.set(0.4, 0.4, 0.4); // Mercúrio é bem pequeno
+
+
+    // Sonda controlável pelo usuário (interação por teclado)
+
+    const sondaGeo = new THREE.ConeGeometry(0.5, 1.6, 8);
+    const sondaMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const sonda = new THREE.Mesh(sondaGeo, sondaMat);
+    sonda.rotation.x = Math.PI / 2; // deixa a ponta do cone apontando pra frente (eixo Z)
+    sonda.position.set(0, 4, 32);
+    scene.add(sonda);
+
+    const teclas = {};
+    window.addEventListener('keydown', (e) => { teclas[e.key.toLowerCase()] = true; });
+    window.addEventListener('keyup',   (e) => { teclas[e.key.toLowerCase()] = false; });
+
+    const velocidadeSonda = 0.25;
+    function moverSonda() {
+      if (teclas['w']) sonda.position.z -= velocidadeSonda;
+      if (teclas['s']) sonda.position.z += velocidadeSonda;
+      if (teclas['a']) sonda.position.x -= velocidadeSonda;
+      if (teclas['d']) sonda.position.x += velocidadeSonda;
     }
 
 
-    // =====================================================================
-    // 10. INTERAÇÃO COM O MOUSE (Raycaster)
-    // =====================================================================
+    // Interação com o mouse: Raycaster para selecionar planetas ao clicar
 
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
-    let clique = { x: 0, y: 0 };
+    let objetoSelecionado = null;
 
-    function atualizarMouse(e) {
-      const r = canvas.getBoundingClientRect();
-      mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1;
-      mouse.y = -((e.clientY - r.top) / r.height) * 2 + 1;
-    }
-
-    // Lança um raio da câmera pelo ponto do mouse e devolve o astro mais próximo atingido.
-    function astroSobMouse() {
-      raycaster.setFromCamera(mouse, camera);
-      const acertos = raycaster.intersectObjects(clicaveis, true);
-      if (!acertos.length) return null;
-      let obj = acertos[0].object;
-      while (obj && !obj.userData.info) obj = obj.parent; // sobe até o objeto que tem informações (ex.: a nave inteira)
-      return obj || null;
-    }
-
-    canvas.addEventListener('pointerdown', e => { clique = { x: e.clientX, y: e.clientY }; });
-    canvas.addEventListener('pointerup', e => {
-      if (Math.hypot(e.clientX - clique.x, e.clientY - clique.y) > 5) return; // foi um arrasto da câmera, não um clique
-      atualizarMouse(e);
-      const alvo = astroSobMouse();
-      if (alvo) definirFoco(alvo);
-    });
-    canvas.addEventListener('pointermove', e => {
-      atualizarMouse(e);
-      canvas.style.cursor = astroSobMouse() ? 'pointer' : 'grab';
-    });
-
-    // Resposta visual da seleção: anel girando ao redor do astro + brilho pulsante nos planetas.
-    let brilhoAnterior = null;
-    function atualizarSelecao(t) {
-      if (brilhoAnterior && brilhoAnterior !== foco) brilhoAnterior.material.emissive.setRGB(0, 0, 0);
-      brilhoAnterior = null;
-      if (!foco) { marcador.visible = false; return; }
-
-      marcador.visible = true;
-      foco.getWorldPosition(marcador.position);
-      const escala = foco.userData.raio * 1.7 * (1 + 0.06 * Math.sin(t * 4));
-      marcador.scale.setScalar(escala);
-      marcador.rotation.set(Math.PI / 2 + 0.4 * Math.sin(t * 1.5), t * 0.6, 0);
-
-      if (foco.material && foco.material.emissive) {
-        foco.material.emissive.setRGB(0.05, 0.15, 0.3).multiplyScalar(0.5 + 0.5 * Math.sin(t * 4));
-        brilhoAnterior = foco;
+    function destacarObjeto(objeto, destaque) {
+      if (destaque) {
+        if (objeto.material.userData.corOriginal === undefined) {
+          objeto.material.userData.corOriginal = objeto.material.color.getHex();
+        }
+        objeto.material.color.setHex(0xffffff); // resposta visual ao clique: objeto "acende"
+      } else if (objeto.material.userData.corOriginal !== undefined) {
+        objeto.material.color.setHex(objeto.material.userData.corOriginal);
       }
     }
 
+    window.addEventListener('click', (evento) => {
+      mouse.x = (evento.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(evento.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
 
-    // =====================================================================
-    // 11. LOOP DE ANIMAÇÃO
-    // =====================================================================
+      if (objetoSelecionado) destacarObjeto(objetoSelecionado, false);
 
-    const tmpCometa = new THREE.Vector3();
+      const alvos = [sol, ...corpos];
+      const intersecoes = raycaster.intersectObjects(alvos);
+
+      if (intersecoes.length > 0) {
+        objetoSelecionado = intersecoes[0].object;
+        destacarObjeto(objetoSelecionado, true);
+        mostrarInfo(infoCorpos.get(objetoSelecionado)); // exibe o resuminho do corpo clicado
+      } else {
+        objetoSelecionado = null;
+        mostrarInfo(null); // esconde o painel se clicar fora de qualquer corpo
+      }
+    });
+
+
+    // Loop na animação.
 
     function animate() {
       requestAnimationFrame(animate);
 
-      const dt = Math.min(relogio.getDelta(), 0.05);
-      tempoReal += dt;
-      const dtSim = pausado ? 0 : dt * ESCALAS_TEMPO[idxEscala];
-      tempoSim += dtSim;
+      const tempo = relogio.getElapsedTime();
 
-      // Sol: pulsa com Math.sin, gira devagar e a textura escorre pela superfície.
-      const pulso = 1 + 0.025 * Math.sin(tempoReal * 1.6);
-      sol.scale.setScalar(3 * pulso);
-      sol.rotation.y += 0.05 * dtSim;
-      texSol.offset.x = (tempoSim * 0.004) % 1;
-      brilhoSol.scale.setScalar(17 * (1 + 0.05 * Math.sin(tempoReal * 1.6 + 1)));
-
-      // Planetas: translação em volta do Sol e rotação em torno do próprio eixo.
-      planetas.forEach(p => {
-        p.orbita.rotation.y += p.velOrbita * dtSim;
-        p.mesh.rotation.y += p.velRotacao * dtSim;
+      // rotação própria (em torno do próprio eixo) de cada planeta
+      corpos.forEach(corpo => {
+        corpo.rotation.y += 0.01;
       });
-      nuvens.rotation.y += 1.45 * dtSim;
-      luaPivo.rotation.y += 1.6 * dtSim;
-      cinturao.rotation.y += 0.05 * dtSim;
 
-      // Cometa: resolve a equação de Kepler (M = E - e*sen E) para acelerar perto do Sol.
-      const M = tempoSim * 0.1;
-      let E = M;
-      for (let i = 0; i < 6; i++) E = M + COMETA.e * Math.sin(E);
-      posicaoCometa(E, tmpCometa);
-      cometa.position.copy(tmpCometa);
-      cometaCauda.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tmpCometa.clone().normalize());
-      cometaCauda.scale.set(1, THREE.MathUtils.clamp(60 / tmpCometa.length(), 0.3, 4), 1);
-      cometaCabeca.rotation.y += 0.8 * dt;
+      orbitas.forEach(orbita => {
+        orbita.grupo.rotation.y += orbita.velocidade;
+      });
 
-      // Estrelas: cintilam de leve e giram muito devagar.
-      matEstrelas.opacity = 0.8 + 0.2 * Math.sin(tempoReal * 0.7);
-      estrelas.rotation.y = tempoReal * 0.002;
+      // Animação baseada em tempo decorrido (Math.sin): o Sol "pulsa" de tamanho
+      sol.scale.setScalar(3 + Math.sin(tempo * 2) * 0.15);
 
-      atualizarNave(dt, tempoReal);
-      atualizarCamera(dt);
-      atualizarSelecao(tempoReal);
-      controls.update();   // necessário sempre que enableDamping está ativo
-      atualizarRotulos();
+      moverSonda(); // atualiza a posição da sonda de acordo com o teclado (WASD)
 
-      elTempo.textContent = pausado ? 'pausado' : ESCALAS_TEMPO[idxEscala] + 'x';
-      elNave.textContent = Math.abs(naveEstado.vel).toFixed(1);
+      controls.update(); // necessário sempre que enableDamping está ativo
 
       renderer.render(scene, camera);
     }
     animate();
 
 
-    // =====================================================================
-    // 12. RESPONSIVIDADE
-    // =====================================================================
+    // Responsividade: permite ajustar a cena quando a janela é redimensionada.
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
