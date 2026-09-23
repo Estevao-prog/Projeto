@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Solar 3D</title>
+
+    <!--
+        Projeto: Sistema Solar 3D (Three.js)
+        Disciplina: Computação Gráfica, Realidade Virtual e Metaverso
+    -->
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #02030a;
+        }
+
+        /* Painéis de interface (ajuda e informações) */
+        .ajuda,
+        #info {
+            position: fixed;
+            background: rgba(10, 15, 30, 0.85);
+            border: 1px solid rgba(120, 180, 255, 0.4);
+            border-radius: 10px;
+            color: white;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+
+        .ajuda {
+            top: 15px;
+            left: 15px;
+            width: 190px;
+            padding: 12px 15px;
+            font-size: 13px;
+        }
+
+        .ajuda dl {
+            margin: 0;
+        }
+
+        .ajuda dt {
+            font-weight: bold;
+            color: #8ecbff;
+            margin-top: 6px;
+        }
+
+        .ajuda dt:first-child {
+            margin-top: 0;
+        }
+
+        .ajuda dd {
+            margin: 2px 0 0;
+            color: #d6dbe5;
+        }
+
+        #info {
+            right: 15px;
+            top: 15px;
+            width: 230px;
+            padding: 15px;
+            background: rgba(10, 15, 30, 0.9);
+            display: none;
+        }
+
+        #info.ativo {
+            display: block;
+        }
+
+        #info h2 {
+            margin: 0 0 8px;
+            color: #8ecbff;
+            font-size: 20px;
+        }
+
+        #info p {
+            margin: 7px 0;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+    </style>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+
+<body>
+
+    <!-- Painel de ajuda com os controles -->
+    <aside class="ajuda">
+        <dl>
+            <dt>W / S</dt><dd>nave para frente e para trás</dd>
+            <dt>A / D</dt><dd>nave para a esquerda e para a direita</dd>
+            <dt>R / F</dt><dd>subir e descer</dd>
+            <dt>Shift</dt><dd>turbo</dd>
+            <dt>C</dt><dd>câmera segue a nave</dd>
+            <dt>Clique</dt><dd>selecionar um astro</dd>
+            <dt>Esc</dt><dd>voltar à visão geral</dd>
+            <dt>P</dt><dd>pausar</dd>
+        </dl>
+    </aside>
+
+    <!-- Painel com as informações do astro selecionado -->
+    <div id="info"></div>
+
+    <script type="module">
+
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+
+        // ============================================================
+        // 1. CENA, CÂMERA, RENDERIZADOR E CONTROLES
+        // ============================================================
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x02030a);
+
+        const camera = new THREE.PerspectiveCamera(
+            60,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            2000
+        );
+        camera.position.set(0, 26, 46);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        const canvas = renderer.domElement;
+
+        // OrbitControls: girar e dar zoom na câmera com o mouse
+        const controls = new OrbitControls(camera, canvas);
+        controls.enableDamping = true;   // movimento suave (exige controls.update() no loop)
+        controls.dampingFactor = 0.06;
+        controls.minDistance = 2;
+        controls.maxDistance = 140;
+
+        const ORIGEM = new THREE.Vector3(0, 0, 0);
+
+
+        // ============================================================
+        // 2. ILUMINAÇÃO
+        // ============================================================
+
+        // Luz de preenchimento: azulada, para o lado escuro dos planetas
+        // não ficar cinza neutro, e sim com um tom "espacial"
+        scene.add(new THREE.AmbientLight(0x667788, 0.7));
+
+        // Luz do Sol: branco levemente amarelado (luz quente); decay baixo
+        // para os astros mais afastados não ficarem escuros demais
+        const luzSol = new THREE.PointLight(0xfff1d6, 12, 340, 0.5);
+        luzSol.position.set(0, 0, 0);
+        scene.add(luzSol);
+
+
+        // ============================================================
+        // 3. TEXTURAS
+        // ============================================================
+
+        const textureLoader = new THREE.TextureLoader();
+
+        // Carrega a imagem e informa que ela está em sRGB (senão as cores ficam desbotadas)
+        function carregarTextura(caminho) {
+            const textura = textureLoader.load(caminho);
+            textura.colorSpace = THREE.SRGBColorSpace;
+            return textura;
+        }
+
+        const sunTexture = carregarTextura('./textures/sun_texture.jpg');
+        const mercurioTexture = carregarTextura('./textures/mercury_texture.jpg');
+        const venusTexture = carregarTextura('./textures/venus_texture.jpg');
+        const terraTexture = carregarTextura('./textures/earth_texture.jpg');
+        const marteTexture = carregarTextura('./textures/mars_texture.jpg');
+        const jupiterTexture = carregarTextura('./textures/jupyter_texture.jpg');
+        const saturnoTexture = carregarTextura('./textures/saturn_texture.jpg');
+        const uranoTexture = carregarTextura('./textures/uranus_texture.jpg');
+        const netunoTexture = carregarTextura('./textures/neptune_texture.jpg');
+
+
+        // ============================================================
+        // 4. DADOS DOS ASTROS (mostrados no painel ao clicar)
+        // ============================================================
+
+        const INFO = {
+            sol: { nome: 'Sol', tipo: 'Estrela', diametro: '1.392.700 km', curiosidade: 'É a estrela no centro do Sistema Solar.' },
+            mercurio: { nome: 'Mercúrio', tipo: 'Planeta rochoso', diametro: '4.879 km', curiosidade: 'É o menor planeta do Sistema Solar.' },
+            venus: { nome: 'Vênus', tipo: 'Planeta rochoso', diametro: '12.104 km', curiosidade: 'É o planeta mais quente do Sistema Solar.' },
+            terra: { nome: 'Terra', tipo: 'Planeta rochoso', diametro: '12.742 km', curiosidade: 'É o único planeta conhecido que possui vida.' },
+            marte: { nome: 'Marte', tipo: 'Planeta rochoso', diametro: '6.779 km', curiosidade: 'É conhecido como o planeta vermelho.' },
+            jupiter: { nome: 'Júpiter', tipo: 'Gigante gasoso', diametro: '139.820 km', curiosidade: 'É o maior planeta do Sistema Solar.' },
+            saturno: { nome: 'Saturno', tipo: 'Gigante gasoso', diametro: '116.460 km', curiosidade: 'É conhecido por seu sistema de anéis.' },
+            urano: { nome: 'Urano', tipo: 'Gigante de gelo', diametro: '50.724 km', curiosidade: 'Possui uma inclinação muito grande em seu eixo.' },
+            netuno: { nome: 'Netuno', tipo: 'Gigante de gelo', diametro: '49.244 km', curiosidade: 'É o planeta mais distante do Sol.' },
+            nave: { nome: 'Nave', tipo: 'Nave espacial', diametro: '—', curiosidade: 'Pode ser controlada pelo teclado.' }
+        };
+
+
+        // ============================================================
+        // 5. GEOMETRIA COMPARTILHADA E LISTAS
+        // ============================================================
+
+        // Uma esfera de raio 1, reaproveitada por todos os astros (cada um muda só a escala)
+        const esferaGeo = new THREE.SphereGeometry(1, 32, 32);
+
+        const clicaveis = [];   // objetos que o Raycaster pode selecionar
+        const planetas = [];    // planetas que orbitam e giram
+
+
+        // ============================================================
+        // 6. LINHAS DE ÓRBITA (OPCIONAL: pode ser removido)
+        // ============================================================
+
+        const matOrbita = new THREE.LineBasicMaterial({
+            color: 0x557080,
+            transparent: true,
+            opacity: 0.4
+        });
+
+        // Desenha um círculo de raio "raio" usando cos e sin
+        function criarLinhaOrbita(raio) {
+            const pontos = [];
+            for (let i = 0; i < 100; i++) {
+                const angulo = (i / 100) * Math.PI * 2;
+                pontos.push(new THREE.Vector3(Math.cos(angulo) * raio, 0, Math.sin(angulo) * raio));
+            }
+            const geometria = new THREE.BufferGeometry().setFromPoints(pontos);
+            scene.add(new THREE.LineLoop(geometria, matOrbita));
+        }
+
+
+        // ============================================================
+        // 7. SOL
+        // ============================================================
+
+        // MeshBasicMaterial não depende de luz: o Sol "brilha" por conta própria
+        const sol = new THREE.Mesh(
+            esferaGeo,
+            new THREE.MeshBasicMaterial({ map: sunTexture })
+        );
+        sol.scale.setScalar(3);
+        sol.userData = { info: INFO.sol, raio: 3, distFoco: 16 };
+        scene.add(sol);
+        clicaveis.push(sol);
+
+
+        // ============================================================
+        // 8. PLANETAS
+        // ============================================================
+
+        // Hierarquia de cada planeta:
+        //   orbita    -> gira em torno do Sol (como um "braço" preso ao centro)
+        //   ponto     -> fica na ponta do braço, a "distancia" do Sol
+        //   inclinado -> inclinação do eixo do planeta
+        //   mesh      -> a esfera, que gira em torno de si mesma
+        function criarPlaneta(cfg) {
+            const orbita = new THREE.Object3D();
+            orbita.rotation.y = cfg.fase;   // cada planeta começa em um ponto diferente da órbita
+            scene.add(orbita);
+
+            criarLinhaOrbita(cfg.distancia);
+
+            const ponto = new THREE.Object3D();
+            ponto.position.x = cfg.distancia;
+            orbita.add(ponto);
+
+            const inclinado = new THREE.Object3D();
+            inclinado.rotation.z = cfg.inclinacao || 0;
+            ponto.add(inclinado);
+
+            const mesh = new THREE.Mesh(
+                esferaGeo,
+                new THREE.MeshStandardMaterial({ map: cfg.textura, roughness: 0.4, metalness: 0 })
+            );
+            mesh.scale.setScalar(cfg.raio);
+            mesh.userData = { info: INFO[cfg.chave], raio: cfg.raio, distFoco: cfg.raio * 4 + 4 };
+            inclinado.add(mesh);
+
+            planetas.push({
+                mesh: mesh,
+                orbita: orbita,
+                velOrbita: cfg.velOrbita,
+                velRotacao: cfg.velRotacao
+            });
+            clicaveis.push(mesh);
+
+            return { mesh, ponto, inclinado };
+        }
+
+        criarPlaneta({
+            chave: 'mercurio', raio: 0.45, distancia: 7, velOrbita: 0.60, velRotacao: 0.4,
+            inclinacao: 0, fase: 0.5, textura: mercurioTexture
+        });
+
+        criarPlaneta({
+            chave: 'venus', raio: 0.8, distancia: 9.5, velOrbita: 0.45, velRotacao: -0.15,
+            inclinacao: 0.05, fase: 2.2, textura: venusTexture
+        });
+
+        criarPlaneta({
+            chave: 'terra', raio: 0.9, distancia: 12, velOrbita: 0.36, velRotacao: 1.2,
+            inclinacao: 0.41, fase: 4, textura: terraTexture
+        });
+
+        criarPlaneta({
+            chave: 'marte', raio: 0.6, distancia: 14.5, velOrbita: 0.30, velRotacao: 1.1,
+            inclinacao: 0.44, fase: 1, textura: marteTexture
+        });
+
+        criarPlaneta({
+            chave: 'jupiter', raio: 2, distancia: 19, velOrbita: 0.21, velRotacao: 2.2,
+            inclinacao: 0.05, fase: 5.3, textura: jupiterTexture
+        });
+
+        const saturno = criarPlaneta({
+            chave: 'saturno', raio: 1.7, distancia: 24.5, velOrbita: 0.15, velRotacao: 2,
+            inclinacao: 0.47, fase: 3.1, textura: saturnoTexture
+        });
+
+        criarPlaneta({
+            chave: 'urano', raio: 1.2, distancia: 29.5, velOrbita: 0.105, velRotacao: 1.2,
+            inclinacao: 1.71, fase: 0.2, textura: uranoTexture
+        });
+
+        criarPlaneta({
+            chave: 'netuno', raio: 1.15, distancia: 34, velOrbita: 0.075, velRotacao: 1.4,
+            inclinacao: 0.49, fase: 2.6, textura: netunoTexture
+        });
+
+
+        // ============================================================
+        // 9. ANEL DE SATURNO
+        // ============================================================
+
+        const anelSaturno = new THREE.Mesh(
+            new THREE.RingGeometry(2.1, 3.7, 64),
+            new THREE.MeshStandardMaterial({ color: 0xc8bfa8, side: THREE.DoubleSide })
+        );
+        anelSaturno.rotation.x = Math.PI / 2;   // deita o anel no plano do equador
+        saturno.inclinado.add(anelSaturno);     // o anel acompanha a inclinação de Saturno
+
+
+        // ============================================================
+        // 10. NAVE (controlada pelo teclado)
+        // ============================================================
+
+        const nave = new THREE.Group();   // agrupa as peças para mover tudo junto
+
+        const materialCorpo = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.05, roughness: 0.55 });
+        const materialAsas = new THREE.MeshStandardMaterial({ color: 0x3a7bd5, metalness: 0.05, roughness: 0.6 });
+        const materialCabine = new THREE.MeshStandardMaterial({ color: 0x66e0ff, emissive: 0x2288aa, roughness: 0.1 });
+
+        const corpoNave = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 1.2, 16), materialCorpo);
+        corpoNave.rotation.x = -Math.PI / 2;
+
+        const narizNave = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.5, 16), materialCorpo);
+        narizNave.rotation.x = -Math.PI / 2;
+        narizNave.position.z = -0.85;
+
+        const asasNave = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.04, 0.5), materialAsas);
+        asasNave.position.z = 0.15;
+
+        const cabine = new THREE.Mesh(esferaGeo, materialCabine);
+        cabine.scale.set(0.12, 0.1, 0.25);
+        cabine.position.set(0, 0.17, -0.2);
+
+        const chama = new THREE.Mesh(
+            new THREE.ConeGeometry(0.11, 0.7, 12),
+            new THREE.MeshBasicMaterial({ color: 0xff9a3c, transparent: true, opacity: 0.85 })
+        );
+        chama.rotation.x = Math.PI / 2;
+        chama.position.z = 0.6;
+
+        nave.add(corpoNave, narizNave, asasNave, cabine, chama);
+        nave.scale.setScalar(1.1);
+        nave.position.set(8, 1.5, 26);
+        nave.userData = { info: INFO.nave, raio: 0.9, distFoco: 6 };
+        scene.add(nave);
+        clicaveis.push(nave);
+
+
+        // ============================================================
+        // 11. MARCADOR DE SELEÇÃO (anel ao redor do astro clicado)
+        // ============================================================
+
+        const marcador = new THREE.Mesh(
+            new THREE.TorusGeometry(1, 0.025, 8, 64),
+            new THREE.MeshBasicMaterial({ color: 0x6fd3ff, transparent: true, opacity: 0.9 })
+        );
+        marcador.visible = false;
+        scene.add(marcador);
+
+
+        // ============================================================
+        // 12. ESTADO GERAL E PAINEL DE INFORMAÇÕES
+        // ============================================================
+
+        let pausado = false;
+        let foco = null;   // astro selecionado (ou a nave) que a câmera acompanha
+
+        const relogio = new THREE.Clock();
+        const elInfo = document.getElementById('info');
+
+        function mostrarInfo(info) {
+            if (!info) {
+                elInfo.classList.remove('ativo');
+                return;
+            }
+
+            elInfo.innerHTML = `
+                <h2>${info.nome}</h2>
+                <p>${info.tipo}</p>
+                <p><strong>Diâmetro:</strong> ${info.diametro}</p>
+                <p>${info.curiosidade}</p>
+                <p>Esc para voltar à visão geral.</p>
+            `;
+            elInfo.classList.add('ativo');
+        }
+
+
+        // ============================================================
+        // 13. INTERAÇÃO COM O TECLADO
+        // ============================================================
+
+        const teclas = {};   // guarda quais teclas estão pressionadas agora
+
+        window.addEventListener('keydown', (e) => {
+            teclas[e.code] = true;
+            if (e.repeat) return;   // ignora a repetição automática ao segurar a tecla
+
+            switch (e.code) {
+                case 'KeyC':
+                    definirFoco(foco === nave ? null : nave);
+                    break;
+                case 'Escape':
+                    definirFoco(null);
+                    break;
+                case 'KeyP':
+                    pausado = !pausado;
+                    break;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            teclas[e.code] = false;
+        });
+
+        // Se a janela perder o foco, solta todas as teclas (evita a nave "presa" andando)
+        window.addEventListener('blur', () => {
+            for (const tecla in teclas) teclas[tecla] = false;
+        });
+
+
+        // ============================================================
+        // 14. MOVIMENTO DA NAVE (WASD)
+        // ============================================================
+
+        function atualizarNave(dt) {
+            // dt = tempo do último quadro: a velocidade fica igual em qualquer FPS
+            const vel = 12 * dt * (teclas.ShiftLeft || teclas.ShiftRight ? 2.5 : 1);
+
+            if (teclas.KeyW) nave.position.z -= vel;
+            if (teclas.KeyS) nave.position.z += vel;
+            if (teclas.KeyA) nave.position.x -= vel;
+            if (teclas.KeyD) nave.position.x += vel;
+            if (teclas.KeyR) nave.position.y += vel;
+            if (teclas.KeyF) nave.position.y -= vel;
+        }
+
+
+        // ============================================================
+        // 15. CÂMERA COM FOCO
+        // ============================================================
+
+        const tmpPos = new THREE.Vector3();
+        const tmpDest = new THREE.Vector3();
+
+        function definirFoco(obj) {
+            foco = obj;
+            mostrarInfo(obj ? obj.userData.info : null);
+        }
+
+        function atualizarCamera() {
+            if (foco) {
+                // getWorldPosition: posição real na cena (os planetas são filhos de pivôs que giram)
+                foco.getWorldPosition(tmpPos);
+                controls.target.lerp(tmpPos, 0.08);   // o alvo da câmera se aproxima aos poucos
+
+                // a câmera também se aproxima, mantendo o ângulo atual, até a distância definida em distFoco
+                tmpDest.subVectors(camera.position, tmpPos);
+                if (tmpDest.lengthSq() < 1e-6) tmpDest.set(0, 0.3, 1);
+                tmpDest.setLength(foco.userData.distFoco).add(tmpPos);
+                camera.position.lerp(tmpDest, 0.08);
+            } else {
+                controls.target.lerp(ORIGEM, 0.08);
+            }
+        }
+
+
+        // ============================================================
+        // 16. INTERAÇÃO COM O MOUSE (Raycaster)
+        // ============================================================
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let inicioClique = { x: 0, y: 0 };
+
+        // Guarda onde o botão do mouse foi pressionado
+        canvas.addEventListener('pointerdown', (event) => {
+            inicioClique = { x: event.clientX, y: event.clientY };
+        });
+
+        canvas.addEventListener('pointerup', (event) => {
+            // Se o mouse se moveu muito entre o down e o up, foi um arrasto
+            // da câmera (OrbitControls), não um clique de seleção — ignora
+            const distancia = Math.hypot(event.clientX - inicioClique.x, event.clientY - inicioClique.y);
+            if (distancia > 5) return;
+
+            // Converte a posição do clique para coordenadas entre -1 e 1
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            // Cria um raio partindo da câmera na direção do clique
+            raycaster.setFromCamera(mouse, camera);
+
+            // true = também testa os filhos (a nave é um grupo de várias peças)
+            const acertos = raycaster.intersectObjects(clicaveis, true);
+
+            if (acertos.length > 0) {
+                let objeto = acertos[0].object;
+
+                // Sobe pelos "pais" até achar o objeto que tem as informações
+                while (objeto && !objeto.userData.info) {
+                    objeto = objeto.parent;
+                }
+
+                if (objeto) definirFoco(objeto);
+            }
+        });
+
+
+        // ============================================================
+        // 17. LOOP DE ANIMAÇÃO
+        // ============================================================
+
+        function animate() {
+            const dt = Math.min(relogio.getDelta(), 0.05);   // tempo desde o último quadro
+            const tempo = relogio.elapsedTime;               // tempo total desde o início
+
+            // Sol pulsando: Math.sin oscila entre -1 e 1 ao longo do tempo
+            sol.scale.setScalar(3 + Math.sin(tempo * 2) * 0.1);
+
+            if (!pausado) {
+                planetas.forEach((planeta) => {
+                    planeta.orbita.rotation.y += planeta.velOrbita * dt;   // translação em volta do Sol
+                    planeta.mesh.rotation.y += planeta.velRotacao * dt;    // rotação em torno de si
+                });
+
+                sol.rotation.y += 0.05 * dt;
+                atualizarNave(dt);
+            }
+
+            atualizarCamera();
+            controls.update();   // necessário porque enableDamping está ativo
+
+            // Marcador de seleção acompanha o astro escolhido
+            if (foco) {
+                foco.getWorldPosition(marcador.position);
+                marcador.scale.setScalar(foco.userData.raio * 1.7);
+            }
+            marcador.visible = foco !== null;
+
+            renderer.render(scene, camera);
+        }
+
+        renderer.setAnimationLoop(animate);
+
+
+        // ============================================================
+        // 18. RESPONSIVIDADE
+        // ============================================================
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+
+</body>
+
+</html>
