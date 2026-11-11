@@ -2,141 +2,99 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Sistema Solar</title>
-  <style>
-    body { margin: 0; overflow: hidden; background: #000; }
-    canvas { display: block; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Última Carta — 21 & Roleta Russa (Three.js)</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- three.js fica em libs/ (versão 0.160.0), então o projeto roda sem internet -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./libs/three/build/three.module.js",
+        "three/addons/": "./libs/three/addons/"
+      }
+    }
+  </script>
 </head>
 <body>
+  <!-- Tela de carregamento -->
+  <div id="loading">
+    <div class="loading-box">
+      <h1>ÚLTIMA CARTA</h1>
+      <p id="loading-text">Carregando o cassino...</p>
+      <div class="bar"><div id="loading-bar"></div></div>
+    </div>
+  </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script>
+  <!-- Configuração da partida -->
+  <div id="setup" class="modal hidden">
+    <div class="modal-box">
+      <h1>ÚLTIMA CARTA</h1>
+      <h2>21 &amp; Roleta Russa</h2>
+      <p class="rules">
+        Cada jogador é um bicho (urso, coelho, gato ou sapo) e joga <b>21 (blackjack)</b>
+        contra o robô crupiê, vendo as próprias cartas em primeira pessoa.
+        Quem <b>passar de 21</b> ou <b>perder a mão</b> para a banca é obrigado a
+        pegar o revólver, <b>girar o tambor</b>, encostar na cabeça e <b>puxar o gatilho</b>. Ninguém sabe
+        quantas balas estão no tambor. O último jogador de pé vence.
+      </p>
+      <label class="row">Número de jogadores
+        <select id="player-count">
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+        </select>
+      </label>
+      <div id="name-inputs"></div>
+      <div class="modal-actions">
+        <button id="btn-start" class="primary">Começar partida</button>
+        <button id="btn-explore">Só explorar o cenário</button>
+      </div>
+      <p class="hint">Mouse: botão esquerdo gira · roda dá zoom · botão direito move a câmera</p>
+    </div>
+  </div>
 
-    // Cenas, cameras e rederizadores.
+  <!-- HUD do jogo -->
+  <div id="hud" class="hidden">
+    <div id="status-box">
+      <div id="status-title">Bem-vindo</div>
+      <div id="status-sub"></div>
+    </div>
 
-    const scene = new THREE.Scene();
+    <div id="camera-buttons">
+      <span>Câmera:</span>
+      <button data-cam="geral">Visão geral</button>
+      <button data-cam="entrada">Entrada</button>
+      <button data-cam="bar">Bar &amp; Lounge</button>
+      <button data-cam="mesa">Mesa do 21</button>
+      <button data-cam="salao">Salão de Jogos</button>
+      <button data-cam="placar">Painel do Placar</button>
+    </div>
 
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      200
-    );
-    // câmera afastada e um pouco de cima, pra ver o sistema todo alinhado
-    camera.position.set(0, 12, 30);
-    camera.lookAt(0, 0, 0);
+    <div id="scoreboard">
+      <h3>Placar</h3>
+      <table>
+        <thead><tr><th>Jogador</th><th>Mão</th><th>V</th><th>D</th><th>Roletas</th><th>Status</th></tr></thead>
+        <tbody id="score-body"></tbody>
+      </table>
+      <div id="round-info"></div>
+    </div>
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    <div id="actions"></div>
 
-    // Utilização de OrbitControls para permitir interação com o sistema
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;   // Deixa o movimento mais suave.
-    controls.dampingFactor = 0.05;
-    controls.minDistance = 5;        // Impede de dar zoom até dentro do sol
-    controls.maxDistance = 80;       // Não permite afastar demais a camera e perder a visão do sistema
+    <div id="side-buttons">
+      <button id="btn-requisitos">Requisitos</button>
+      <button id="btn-som">Som: ligado</button>
+      <button id="btn-sangue">Sangue: ligado</button>
+      <button id="btn-menu">Menu</button>
+    </div>
 
-    // Iluminação da cena que parte do proprio sol
-    const luzSol = new THREE.PointLight(0xffffff, 2, 100);
-    luzSol.position.set(0, 0, 0);
-    scene.add(luzSol);
-    scene.add(new THREE.AmbientLight(0x404040)); // luz de preenchimento, senão o lado escuro fica 100% preto
+    <div id="requisitos" class="hidden"></div>
+  </div>
 
+  <div id="flash"></div>
 
-    // Geometrias
-
-    // Geometria 1: esfera -> usada no Sol e em todos os planetas
-    const esferaGeo = new THREE.SphereGeometry(1, 24, 24);
-
-    // Geometria 2: torus (anel) -> usada no anel de Saturno
-    const anelGeo = new THREE.TorusGeometry(2, 0.3, 8, 40);
-
-
-    // Materiais
-
-    const matSol      = new THREE.MeshBasicMaterial({ color: 0xffdd00 }); // Sol emite luz própria, não reage à luz
-    const matMercurio  = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
-    const matVenus     = new THREE.MeshStandardMaterial({ color: 0xe0c16c });
-    const matTerra     = new THREE.MeshStandardMaterial({ color: 0x2266ff });
-    const matMarte     = new THREE.MeshStandardMaterial({ color: 0xff4500 });
-    const matJupiter    = new THREE.MeshStandardMaterial({ color: 0xd2a679 });
-    const matSaturno   = new THREE.MeshStandardMaterial({ color: 0xf5deb3 });
-    const matAnel      = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-    const matUrano     = new THREE.MeshStandardMaterial({ color: 0x66ffff });
-    const matNetuno    = new THREE.MeshStandardMaterial({ color: 0x3333ff });
-
-
-    // Criação dos planetas.
-
-    const corpos = []; // Guarda os planetas pra facilitar aplicar a rotação depois.
-
-    function criarCorpo(geometria, material, x, y, z) {
-      const mesh = new THREE.Mesh(geometria, material);
-      mesh.position.set(x, y, z);
-      scene.add(mesh);
-      corpos.push(mesh);
-      return mesh;
-    }
-
-    const sol      = criarCorpo(esferaGeo, matSol,      0,  0,  0);
-    const mercurio = criarCorpo(esferaGeo, matMercurio, -4, 0, -3);
-    const venus    = criarCorpo(esferaGeo, matVenus,    -8, 0.5, 3);
-    const terra    = criarCorpo(esferaGeo, matTerra,   -10, 0,  -4);
-    const marte    = criarCorpo(esferaGeo, matMarte,   -15, -0.5, 6);
-    const jupiter  = criarCorpo(esferaGeo, matJupiter,   4, 0.5, -8);
-    const saturno  = criarCorpo(esferaGeo, matSaturno,   9, 0,  2);
-    const urano    = criarCorpo(esferaGeo, matUrano,    13, -0.5, 7);
-    const netuno   = criarCorpo(esferaGeo, matNetuno,   17, 0,  0);
-
-    // anel de Saturno: possui a mesma posição do planeta, mas feito de geometria diferente.
-    const anelSaturno = new THREE.Mesh(anelGeo, matAnel);
-    anelSaturno.position.copy(saturno.position);
-    scene.add(anelSaturno);
-    // Não está entre a lista de corpos, pois possui rotação própria.
-
-
-    // Rotação em 3 planetas (inclinação axial real dos planetas)
-
-    terra.rotation.z = 0.41;          // Terra tem ~23,5° de inclinação
-    urano.rotation.z = 1.71;          // Urano é o mais inclinado (~98°), "deitado"
-    anelSaturno.rotation.x = 1.2;     // inclina o anel pra ficar visível, como na realidade
-
-
-    // Escala diferente para 3 objetos do cenário.
-
-    sol.scale.set(3, 3, 3);           // Sol é gigante comparado aos planetas
-    jupiter.scale.set(2, 2, 2);       // Júpiter é o maior planeta
-    mercurio.scale.set(0.4, 0.4, 0.4); // Mercúrio é bem pequeno
-
-
-    // Loop na animação.
-
-    function animate() {
-      requestAnimationFrame(animate);
-
-      // rotação própria (em torno do próprio eixo) de cada planeta
-      corpos.forEach(corpo => {
-        corpo.rotation.y += 0.01;
-      });
-
-      controls.update(); // necessário sempre que enableDamping está ativo
-
-      renderer.render(scene, camera);
-    }
-    animate();
-
-
-    // Responsividade: permite ajustar a cena quando a janela é redimensionada.
-
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-  </script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
