@@ -1,11 +1,11 @@
 # Alunos
-Estevão Olegário da Silva
-Thiago Brito da Silveira
-Ana Ruth Muniz Carvalhal de Queiroz Silva
-Wesley Monteiro Ribeiro
-Igor Mazorque da Silva
-Gabriel da Silva Souza
-Matheus Antônio Ferreira Saluto
+Estevão Olegário da Silva,
+Thiago Brito da Silveira,
+Ana Ruth Muniz Carvalhal de Queiroz Silva,
+Wesley Monteiro Ribeiro,
+Igor Mazorque da Silva,
+Gabriel da Silva Souza,
+Matheus Antônio Ferreira Saluto.
 
 # Última Carta — 21 & Roleta Russa (Three.js)
 
